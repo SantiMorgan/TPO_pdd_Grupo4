@@ -1,0 +1,163 @@
+@startuml DiagramaGeneral
+title Diagrama General - Arquitectura MVC + Facade
+
+class BartenderView
+class EncargadoView
+class Controlador
+class BarStockFacade {
+  +despacharComanda()
+  +registrarCompra()
+  +auditarInventario()
+}
+class Inventario
+class Receta
+class Comanda
+interface ItemVendible
+class VentaPorReceta
+class VentaBotellaCompleta
+interface EstrategiaPrecio
+class AlertaStock
+
+BartenderView --> Controlador
+EncargadoView --> Controlador
+Controlador --> BarStockFacade
+BarStockFacade --> Inventario
+BarStockFacade --> Comanda
+BarStockFacade --> Receta
+Comanda --> ItemVendible
+ItemVendible <|.. VentaPorReceta
+ItemVendible <|.. VentaBotellaCompleta
+VentaPorReceta --> Receta
+Comanda --> EstrategiaPrecio
+Inventario --> AlertaStock
+@enduml
+
+
+@startuml PatronState
+title Patron State - Ciclo de vida de la Comanda
+
+class Comanda {
+  -estado: EstadoComanda
+  +avanzarEstado()
+}
+interface EstadoComanda {
+  +manejar(Comanda)
+}
+class Registrada
+class EnPreparacion
+class Despachada
+class Anulada
+
+Comanda --> EstadoComanda
+EstadoComanda <|.. Registrada
+EstadoComanda <|.. EnPreparacion
+EstadoComanda <|.. Despachada
+EstadoComanda <|.. Anulada
+Registrada --> EnPreparacion
+EnPreparacion --> Despachada
+EnPreparacion --> Anulada
+Despachada --> Anulada
+@enduml
+
+
+@startuml PatronStrategy
+title Patron Strategy - Calculo de precios
+
+class Venta {
+  -estrategia: EstrategiaPrecio
+  +calcularPrecio()
+}
+interface EstrategiaPrecio {
+  +calcular(item)
+}
+class PrecioNormal
+class PrecioHappyHour
+class PrecioDemandaAlta
+
+Venta --> EstrategiaPrecio
+EstrategiaPrecio <|.. PrecioNormal
+EstrategiaPrecio <|.. PrecioHappyHour
+EstrategiaPrecio <|.. PrecioDemandaAlta
+@enduml
+
+
+@startuml PatronObserver
+title Patron Observer - Alertas de stock
+
+class Inventario {
+  -observadores: List<Observador>
+  +descontarStock()
+  +notificar()
+}
+interface Observador {
+  +actualizar(insumo)
+}
+class AlertaStock {
+  +actualizar(insumo)
+}
+
+Inventario --> Observador
+Observador <|.. AlertaStock
+@enduml
+
+
+@startuml PatronSimpleFactory
+title Patron Simple Factory - Creacion de notificaciones
+
+class AlertaStock
+class NotificacionFactory {
+  +crear(tipo): Notificacion
+}
+interface Notificacion {
+  +enviar()
+}
+class Email
+class SMS
+
+AlertaStock --> NotificacionFactory
+NotificacionFactory ..> Notificacion
+Notificacion <|.. Email
+Notificacion <|.. SMS
+@enduml
+
+
+@startuml PatronFacade
+title Patron Facade - Punto de entrada al sistema
+
+class Controlador
+class BarStockFacade {
+  +despacharComanda()
+  +registrarCompra()
+  +auditarInventario()
+}
+class Inventario
+class Recetas
+class Comandas
+
+Controlador --> BarStockFacade
+BarStockFacade --> Inventario
+BarStockFacade --> Recetas
+BarStockFacade --> Comandas
+@enduml
+
+
+@startuml PatronDecorator
+title Patron Decorator - Reportes de gestion
+
+interface Reporte {
+  +generar()
+}
+class ReporteBase
+abstract class ReporteDecorator {
+  -reporte: Reporte
+  +generar()
+}
+class ReporteConGrafico
+class ReporteConTendencias
+
+Reporte <|.. ReporteBase
+Reporte <|.. ReporteDecorator
+ReporteDecorator o-- Reporte
+ReporteDecorator <|-- ReporteConGrafico
+ReporteDecorator <|-- ReporteConTendencias
+@enduml

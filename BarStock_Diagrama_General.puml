@@ -1,0 +1,345 @@
+@startuml DiagramaGeneral
+title Diagrama General - Arquitectura MVC + Facade
+
+class BartenderView {
+  +registrarVenta(items: List<VentaPorReceta>): void
+  +consultarStockDisponible(insumoId: String): double
+  +cargarRecuentoFisico(insumoId: String, cantidad: double): void
+}
+
+class EncargadoView {
+  +registrarCompra(insumoId: String, cantidad: double): void
+  +auditarMermas(): ReporteAuditoria
+  +verReportesFinancieros(): ReporteFinanciero
+}
+
+class Controlador {
+  -facade: BarStockFacade
+  +manejarRegistroVenta(items: List<VentaPorReceta>): void
+  +manejarDespacho(comandaId: String): void
+  +manejarCompra(insumoId: String, cantidad: double): void
+}
+
+class BarStockFacade {
+  -inventario: Inventario
+  -comandas: List<Comanda>
+  -recetas: List<Receta>
+  +registrarComanda(items: List<VentaPorReceta>): Comanda
+  +despacharComanda(comandaId: String): void
+  +registrarCompra(insumoId: String, cantidad: double): void
+  +auditarInventario(): ReporteAuditoria
+}
+
+class Inventario {
+  -insumos: Map<String, Insumo>
+  -observadores: List<Observador>
+  +descontarStock(insumoId: String, cantidad: double): void
+  +consultarStock(insumoId: String): double
+  +agregarObservador(o: Observador): void
+  +notificar(insumo: Insumo): void
+}
+
+class Insumo {
+  -id: String
+  -nombre: String
+  -unidadMedida: String
+  -costoUnitario: double
+  -puntoReorden: double
+  -stockActual: double
+}
+
+class IngredienteReceta {
+  -insumo: Insumo
+  -cantidadMinima: double
+  -cantidadMaxima: double
+  +esRango(): boolean
+  +cantidadPorDefecto(): double
+}
+
+class Receta {
+  -id: String
+  -nombre: String
+  -ingredientes: List<IngredienteReceta>
+  -tolerancia: double
+  +calcularCosto(): double
+  +descontarInsumos(inventario: Inventario, cantidadesElegidas: Map<String, double>): void
+}
+
+class Comanda {
+  -id: String
+  -items: List<VentaPorReceta>
+  -estado: EstadoComanda
+  -estrategiaPrecio: EstrategiaPrecio
+  -esCortesia: boolean
+  -motivoAnulacion: String
+  +avanzarEstado(): void
+  +anular(motivo: String): void
+  +calcularTotal(): double
+}
+
+class VentaPorReceta {
+  -receta: Receta
+  -cantidadesElegidas: Map<String, double>
+  +descontarStock(inventario: Inventario): void
+  +calcularPrecio(estrategia: EstrategiaPrecio): double
+}
+
+interface EstrategiaPrecio {
+  +calcular(item: VentaPorReceta): double
+}
+
+class AlertaStock {
+  -puntosReposicion: Map<String, double>
+  +actualizar(insumo: Insumo): void
+}
+
+BartenderView --> Controlador
+EncargadoView --> Controlador
+Controlador --> BarStockFacade
+BarStockFacade --> Inventario
+BarStockFacade --> Comanda
+BarStockFacade --> Receta
+Inventario --> Insumo
+Receta --> IngredienteReceta
+IngredienteReceta --> Insumo
+Comanda --> VentaPorReceta
+VentaPorReceta --> Receta
+Comanda --> EstrategiaPrecio
+Inventario --> AlertaStock
+@enduml
+
+
+@startuml PatronState
+title Patron State - Ciclo de vida de la Comanda
+
+class Comanda {
+  -id: String
+  -estado: EstadoComanda
+  -motivoAnulacion: String
+  +avanzarEstado(): void
+  +anular(motivo: String): void
+  +setEstado(estado: EstadoComanda): void
+}
+
+interface EstadoComanda {
+  +avanzar(comanda: Comanda): void
+  +anular(comanda: Comanda, motivo: String): void
+}
+
+class Registrada {
+  +avanzar(comanda: Comanda): void
+  +anular(comanda: Comanda, motivo: String): void
+}
+
+class EnPreparacion {
+  +avanzar(comanda: Comanda): void
+  +anular(comanda: Comanda, motivo: String): void
+}
+
+class Despachada {
+  +avanzar(comanda: Comanda): void
+  +anular(comanda: Comanda, motivo: String): void
+}
+
+class Anulada {
+  -motivo: String
+  +avanzar(comanda: Comanda): void
+  +anular(comanda: Comanda, motivo: String): void
+}
+
+Comanda --> EstadoComanda
+EstadoComanda <|.. Registrada
+EstadoComanda <|.. EnPreparacion
+EstadoComanda <|.. Despachada
+EstadoComanda <|.. Anulada
+Registrada --> EnPreparacion : avanzar()
+EnPreparacion --> Despachada : avanzar()
+EnPreparacion --> Anulada : anular() [fallido]
+Despachada --> Anulada : anular() [devuelto]
+@enduml
+
+
+@startuml PatronStrategy
+title Patron Strategy - Calculo de precios
+
+class Venta {
+  -item: VentaPorReceta
+  -estrategia: EstrategiaPrecio
+  +calcularPrecio(): double
+  +setEstrategia(estrategia: EstrategiaPrecio): void
+}
+
+interface EstrategiaPrecio {
+  +calcular(item: VentaPorReceta): double
+}
+
+class PrecioNormal {
+  +calcular(item: VentaPorReceta): double
+}
+
+class PrecioHappyHour {
+  -descuento: double
+  -horaInicio: LocalTime
+  -horaFin: LocalTime
+  +calcular(item: VentaPorReceta): double
+}
+
+class PrecioDemandaAlta {
+  -factorIncremento: double
+  +calcular(item: VentaPorReceta): double
+}
+
+Venta --> EstrategiaPrecio
+EstrategiaPrecio <|.. PrecioNormal
+EstrategiaPrecio <|.. PrecioHappyHour
+EstrategiaPrecio <|.. PrecioDemandaAlta
+@enduml
+
+
+@startuml PatronObserver
+title Patron Observer - Alertas de stock
+
+class Inventario {
+  -insumos: Map<String, Insumo>
+  -observadores: List<Observador>
+  +descontarStock(insumoId: String, cantidad: double): void
+  +agregarObservador(o: Observador): void
+  +quitarObservador(o: Observador): void
+  +notificar(insumo: Insumo): void
+}
+
+interface Observador {
+  +actualizar(insumo: Insumo): void
+}
+
+class AlertaStock {
+  -puntosReposicion: Map<String, double>
+  +actualizar(insumo: Insumo): void
+  -haLlegadoAPuntoDeReposicion(insumo: Insumo): boolean
+}
+
+class Insumo {
+  -id: String
+  -nombre: String
+  -stockActual: double
+  -puntoReorden: double
+}
+
+Inventario --> Insumo
+Inventario --> Observador
+Observador <|.. AlertaStock
+AlertaStock --> Insumo
+@enduml
+
+
+@startuml PatronSimpleFactory
+title Patron Simple Factory - Creacion de notificaciones
+
+class AlertaStock {
+  +actualizar(insumo: Insumo): void
+}
+
+class NotificacionFactory {
+  +{static} crear(tipo: TipoNotificacion): Notificacion
+}
+
+enum TipoNotificacion {
+  EMAIL
+  SMS
+}
+
+interface Notificacion {
+  +enviar(mensaje: String, destinatario: String): void
+}
+
+class Email {
+  -servidorSmtp: String
+  +enviar(mensaje: String, destinatario: String): void
+}
+
+class SMS {
+  -proveedor: String
+  +enviar(mensaje: String, destinatario: String): void
+}
+
+AlertaStock --> NotificacionFactory
+NotificacionFactory ..> Notificacion
+NotificacionFactory --> TipoNotificacion
+Notificacion <|.. Email
+Notificacion <|.. SMS
+@enduml
+
+
+@startuml PatronFacade
+title Patron Facade - Punto de entrada al sistema
+
+class Controlador {
+  -facade: BarStockFacade
+}
+
+class BarStockFacade {
+  -inventario: Inventario
+  -comandas: List<Comanda>
+  -recetas: List<Receta>
+  +registrarComanda(items: List<VentaPorReceta>): Comanda
+  +despacharComanda(comandaId: String): void
+  +registrarCompra(insumoId: String, cantidad: double): void
+  +auditarInventario(): ReporteAuditoria
+}
+
+class Inventario {
+  +descontarStock(insumoId: String, cantidad: double): void
+  +consultarStock(insumoId: String): double
+}
+
+class Recetas {
+  +buscarPorId(id: String): Receta
+  +listarTodas(): List<Receta>
+}
+
+class Comandas {
+  +crear(items: List<VentaPorReceta>): Comanda
+  +buscarPorId(id: String): Comanda
+}
+
+Controlador --> BarStockFacade
+BarStockFacade --> Inventario
+BarStockFacade --> Recetas
+BarStockFacade --> Comandas
+@enduml
+
+
+@startuml PatronDecorator
+title Patron Decorator - Reportes de gestion
+
+interface Reporte {
+  +generar(): String
+}
+
+class ReporteBase {
+  -datos: List<Venta>
+  +generar(): String
+}
+
+abstract class ReporteDecorator {
+  #reporte: Reporte
+  +ReporteDecorator(reporte: Reporte)
+  +generar(): String
+}
+
+class ReporteConGrafico {
+  +generar(): String
+  -agregarGrafico(base: String): String
+}
+
+class ReporteConTendencias {
+  +generar(): String
+  -agregarTendencias(base: String): String
+}
+
+Reporte <|.. ReporteBase
+Reporte <|.. ReporteDecorator
+ReporteDecorator o-- Reporte
+ReporteDecorator <|-- ReporteConGrafico
+ReporteDecorator <|-- ReporteConTendencias
+@enduml
