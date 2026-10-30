@@ -1,0 +1,18 @@
+:root { font-family: system-ui, sans-serif; color: #203c36; background: #f3f4ed; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 960px; padding: 64px 24px; margin: auto; }
+.eyebrow { font-size: .72rem; letter-spacing: .13em; font-weight: 700; color: #536d63; }
+h1 { font-size: clamp(2.6rem, 8vw, 4.5rem); letter-spacing: -.06em; margin: 12px 0; }
+h1 span { font-weight: 400; }
+p { line-height: 1.65; }
+.connection { display: flex; flex-direction: column; gap: 6px; padding: 20px; background: #dfece2; border: 1px solid #bed1c3; border-radius: 12px; margin: 32px 0; }
+.connection span { font-size: .9rem; overflow-wrap: anywhere; }
+nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+button { font: inherit; padding: 10px 24px; border: 1px solid #97aea2; border-radius: 8px; cursor: pointer; background: transparent; color: inherit; }
+button[aria-pressed="true"] { background: #173f38; color: white; border-color: #173f38; }
+button:focus-visible { outline: 3px solid #9c671c; outline-offset: 3px; }
+.workspace { padding: 28px; background: #fff; border: 1px solid #d9dfd5; border-radius: 12px; }
+h2 { margin: 10px 0; }
+.pending, footer { color: #5e6f64; font-size: .85rem; }
+footer { margin-top: 28px; line-height: 1.6; }

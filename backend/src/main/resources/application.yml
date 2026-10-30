@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: barstock
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/barstock}
+    username: ${SPRING_DATASOURCE_USERNAME:barstock}
+    password: ${SPRING_DATASOURCE_PASSWORD:cambiar_en_local}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: barstock
+  flyway:
+    default-schema: barstock
+    schemas: barstock
+
+management:
+  endpoints:
+    web:
+      base-path: /api
+      discovery:
+        enabled: false
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
