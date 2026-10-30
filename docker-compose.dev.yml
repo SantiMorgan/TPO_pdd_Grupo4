@@ -1,0 +1,32 @@
+services:
+  db:
+    ports:
+      - "${DB_PORT:-5432}:5432"
+
+  backend:
+    build:
+      target: development
+    environment:
+      SPRING_DEVTOOLS_RESTART_ENABLED: "true"
+    volumes:
+      - ./backend/src:/app/src
+      - maven-cache:/root/.m2
+
+  frontend:
+    build:
+      target: development
+    # Sustituye el puerto 80 de nginx por el de Vite en desarrollo.
+    ports: !override
+      - "${FRONTEND_PORT:-3000}:5173"
+    environment:
+      API_PROXY_TARGET: http://backend:8080
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.js:/app/vite.config.js
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+
+volumes:
+  maven-cache:

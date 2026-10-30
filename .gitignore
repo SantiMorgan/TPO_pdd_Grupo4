@@ -28,3 +28,13 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Entorno y builds ###
+.env
+.env.*
+!.env.example
+**/target/
+**/node_modules/
+**/dist/
+*.log
+/.cache/
