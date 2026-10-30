@@ -13,7 +13,7 @@ Trabajo Práctico — *Proceso de Desarrollo de Software*, UADE (Grupo 4).
 | Welz, Mathias Gustavo | [@usuario](https://github.com/USUARIO) | [Perfil](https://www.linkedin.com/in/USUARIO) |
 | Vazquez, Lucas Valentin | [@usuario](https://github.com/USUARIO) | [Perfil](https://www.linkedin.com/in/USUARIO) |
 
-**Repositorio:** <https://github.com/SantiMorgan/Actividad02_Grupo4_19092026-->
+**Repositorio:** <https://github.com/SantiMorgan/TPO_pdd_Grupo4>
 <!-- Completar los perfiles de los integrantes. -->
 
 
@@ -206,8 +206,8 @@ Todo el entorno se levanta con un comando. No hay que instalar PostgreSQL, JDK n
 **Primer arranque**
 
 ```bash
-git clone https://github.com/SantiMorgan/Actividad02_Grupo4_19092026--.git
-cd Actividad02_Grupo4_19092026--
+git clone https://github.com/SantiMorgan/TPO_pdd_Grupo4.git
+cd TPO_pdd_Grupo4
 cp .env.example .env
 docker compose up --build
 ```
