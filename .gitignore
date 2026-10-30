@@ -35,6 +35,7 @@ bin/
 !.env.example
 **/target/
 **/node_modules/
+**/.vite/
 **/dist/
 *.log
 /.cache/
