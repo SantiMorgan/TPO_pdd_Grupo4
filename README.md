@@ -19,7 +19,7 @@ Trabajo Práctico — *Proceso de Desarrollo de Software*, UADE (Grupo 4).
 
 **Docente:** Bueno, Moisés Evaristo · **Materia:** Proceso de Desarrollo de Software · **Universidad:** Universidad Argentina de la Empresa (UADE)
 
-> **Estado:** Hito 0 (andamiaje + infraestructura). La base incluye una pantalla inicial por rol y los endpoints `/api` y `/api/health`. Lo descripto en las secciones de arquitectura es el diseño acordado;
+> **Estado:** base ejecutable más CRUD de inventario. Incluye creación, consulta, edición, baja lógica y reactivación de insumos, API y persistencia PostgreSQL con `BigDecimal`. Ver [contrato y ejemplos de inventario](docs/api/inventario.md) y [UML implementado](docs/uml/Inventario_Implementado.puml). El stock se carga al crear; descuentos y compras quedan pendientes. La base incluye una pantalla inicial por rol y los endpoints `/api` y `/api/health`. Lo descripto en las secciones de arquitectura es el diseño acordado;
 > las funcionalidades se marcan como implementadas en [Roadmap](#7-roadmap) recién cuando existan y estén testeadas.
 > El reparto y las tareas están en el [plan de trabajo](docs/PLAN_DE_TRABAJO.md). Las reglas de despacho están propuestas en [ADR-001](docs/decisiones/ADR-001-reglas-de-despacho.md), pendiente de aprobación.
 
@@ -178,9 +178,12 @@ barstock-solutions/
         └── routes/               # ruteo y guardas por rol
 ```
 
-El árbol describe la arquitectura objetivo. En esta base, `EstadoController` y `BarStockFacade` publican el estado
-de la aplicación; los paquetes de dominio quedan preparados para los próximos hitos. La migración V1 crea el
-esquema `barstock`, todavía sin tablas de negocio. El prototipo de consola original se conserva en `src/` y no
+El árbol describe la arquitectura objetivo. `EstadoController` y `BarStockFacade` publican el estado
+de la aplicación. El CRUD implementado sigue `InventarioController` → `BarStockFacade` → `InventarioService`
+→ `InsumoRepository`, con el dominio en `model/inventario`. La migración V1 crea el
+esquema `barstock`, V2 incorpora la tabla `insumo` y V3 restringe las cantidades a enteros
+(stock y punto de reorden, tanto en ML como en UNIDAD); los costos conservan dos decimales.
+El prototipo de consola original se conserva en `src/` y no
 forma parte del build de Spring Boot. Los diagramas y el PDF existente están en `docs/uml/` y `docs/entregas/`.
 
 **Reglas de dependencia (se validan en code review):**
@@ -328,6 +331,7 @@ y ensayo, con congelamiento a las 22:00.
 |---|---|---|
 | 0 — infraestructura | Andamiaje del repo, Docker Compose, CI, esquema inicial en Flyway | ✅ base implementada y verificada localmente; publicación compartida pendiente |
 | 0 — contratos compartidos | Contratos Java, OpenAPI, tablas de negocio, datos de ejemplo, logging común y casos de integración | ⏳ pendiente |
+| Inventario — CRUD | Alta, consulta, edición, baja lógica y reactivación de insumos; validaciones, persistencia y pruebas | ✅ implementado; contrato en `docs/api/inventario.md` |
 | 1 | Dominio base: `Insumo`, `Inventario`, `Receta`, `IngredienteReceta` + descuento atómico | ⏳ pendiente |
 | 2 | Flujo completo: registrar comanda → despachar → descuento de stock (State + Facade) | ⏳ pendiente |
 | 3 | Strategy de precios + Observer/AlertaStock + Simple Factory | ⏳ pendiente |
@@ -353,6 +357,7 @@ cerrarse antes de implementar cada contrato, incluido el precio histórico, el m
 
 ## Documentación de diseño
 
+- [Prototipo interactivo](docs/prototipos/BarStock_Solutions_Prototipo_Mejorado.html) — demo HTML independiente con datos en `localStorage`; se abre directamente en el navegador.
 - `docs/entregas/` — Actividad 1, Actividad 2 e infograma.
 - `docs/uml/` — diagramas PlantUML (general y por patrón).
 - [Plan de trabajo](docs/PLAN_DE_TRABAJO.md) — reparto, tareas, dependencias y pruebas a cargo del líder.
