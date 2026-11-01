@@ -357,6 +357,7 @@ cerrarse antes de implementar cada contrato, incluido el precio histórico, el m
 
 ## Documentación de diseño
 
+- [Prototipo interactivo](docs/prototipos/BarStock_Solutions_Prototipo_Mejorado.html) — demo HTML independiente con datos en `localStorage`; se abre directamente en el navegador.
 - `docs/entregas/` — Actividad 1, Actividad 2 e infograma.
 - `docs/uml/` — diagramas PlantUML (general y por patrón).
 - [Plan de trabajo](docs/PLAN_DE_TRABAJO.md) — reparto, tareas, dependencias y pruebas a cargo del líder.
