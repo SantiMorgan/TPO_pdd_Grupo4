@@ -1,0 +1,77 @@
+@startuml InventarioImplementado
+title Inventario implementado - CRUD con baja lógica
+
+class InventarioController {
+  +crear(request): InsumoResponse
+  +listar(activo: boolean): List<InsumoResponse>
+  +consultar(id: UUID): InsumoResponse
+  +consultarStock(id: UUID): StockInsumoResponse
+  +editar(id: UUID, request): InsumoResponse
+  +darDeBaja(id: UUID): void
+  +darDeAlta(id: UUID): InsumoResponse
+}
+
+class BarStockFacade {
+  -inventario: InventarioService
+  +crearInsumo(...): Insumo
+  +listarInsumos(activo: boolean): List<Insumo>
+  +consultarInsumo(id: UUID): Insumo
+  +editarInsumo(...): Insumo
+  +darDeBajaInsumo(id: UUID): void
+  +darDeAltaInsumo(id: UUID): Insumo
+}
+
+class InventarioService {
+  -repositorio: InsumoRepository
+  +crear(...): Insumo
+  +listar(activo: boolean): List<Insumo>
+  +consultar(id: UUID): Insumo
+  +editar(...): Insumo
+  +darDeBaja(id: UUID): void
+  +darDeAlta(id: UUID): Insumo
+}
+
+interface InsumoRepository {
+  +existsByCodigo(codigo: String): boolean
+  +findById(id: UUID): Optional<Insumo>
+  +buscarParaActualizar(id: UUID): Optional<Insumo>
+  +findByActivoOrderByNombreAscIdAsc(activo: boolean): List<Insumo>
+  +saveAndFlush(insumo: Insumo): Insumo
+}
+
+class Insumo <<JPA>> {
+  -id: UUID
+  -codigo: String
+  -nombre: String
+  -unidadMedida: UnidadMedida
+  -stockActual: BigDecimal
+  -costoUnitario: BigDecimal
+  -puntoReorden: BigDecimal
+  -activo: boolean
+  -version: long
+  +editar(nombre, costoUnitario, puntoReorden): void
+  +darDeBaja(): void
+  +darDeAlta(): void
+  +necesitaReposicion(): boolean
+}
+
+enum UnidadMedida {
+  ML
+  UNIDAD
+}
+
+InventarioController --> BarStockFacade
+BarStockFacade --> InventarioService
+InventarioService --> InsumoRepository
+InventarioService --> Insumo
+InsumoRepository --> Insumo
+Insumo --> UnidadMedida
+
+note right of Insumo
+  Stock y punto de reorden: enteros >= 0, hasta 12 dígitos.
+  BigDecimal con escala 0; SQL rechaza fracciones.
+  Costos NUMERIC(12,2), sin valores negativos.
+  Código único reservado incluso después de la baja.
+  Edición conserva código, unidad y stock.
+end note
+@enduml
