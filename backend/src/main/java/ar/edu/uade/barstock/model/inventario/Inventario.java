@@ -117,7 +117,7 @@ public class Inventario {
     }
 
     @Transactional
-    public List<AjusteStock> ajustarARecuento(UUID establecimientoId, Map<UUID, BigDecimal> recuento, String detalle) {
+    public List<AjusteStock> ajustarARecuento(UUID establecimientoId, Map<UUID, RecuentoInsumo> recuento, String detalle) {
         if (recuento == null || recuento.isEmpty()) {
             throw new IllegalArgumentException("Ingresá por lo menos un recuento físico");
         }
@@ -126,13 +126,15 @@ public class Inventario {
         List<EventoStock> eventos = new ArrayList<>();
         for (Insumo insumo : bloquearEnOrden(establecimientoId, recuento.keySet())) {
             BigDecimal teorico = insumo.getStockActual();
-            BigDecimal diferencia = insumo.ajustarA(recuento.get(insumo.getId()));
+            RecuentoInsumo conteo = recuento.get(insumo.getId());
+            BigDecimal diferencia = insumo.ajustarA(insumo.cantidadContada(conteo.envasesCompletos(), conteo.restante()));
             if (diferencia.signum() != 0) {
                 movimientos.save(MovimientoStock.ajuste(insumo, diferencia, detalle, ahora));
                 eventos.add(EventoStock.de(insumo, teorico));
             }
             ajustes.add(new AjusteStock(insumo.getId(), insumo.getNombre(), insumo.getUnidadMedida(),
-                    teorico, insumo.getStockActual(), insumo.getCostoUnitario()));
+                    insumo.getContenidoEnvase(), teorico, insumo.getStockActual(), insumo.getCostoUnitario(),
+                    conteo.comentario()));
         }
         notificar(eventos);
         return ajustes;

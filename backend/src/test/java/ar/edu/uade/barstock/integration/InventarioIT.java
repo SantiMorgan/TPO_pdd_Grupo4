@@ -50,7 +50,7 @@ class InventarioIT {
         jdbc.update("DELETE FROM barstock.insumo");
         jdbc.update("DELETE FROM barstock.establecimiento");
         var bar = http.postForObject("/api/establecimientos",
-                Map.of("codigo", "PRUEBA", "nombre", "Bar de prueba", "zona", "CABA"), EstablecimientoResponse.class);
+                Map.of("codigo", "PRUEBA", "nombre", "Bar de prueba", "zona", "CABA", "direccion", "Av. Siempre Viva 742"), EstablecimientoResponse.class);
         insumos = "/api/establecimientos/" + bar.id() + "/insumos";
     }
 

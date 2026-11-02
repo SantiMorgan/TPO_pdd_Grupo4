@@ -34,19 +34,16 @@ export default function CartaView({ ir }) {
     <>
       <Encabezado
         titulo={`Carta de ${establecimiento.nombre}`}
-        descripcion="Elegí tus tragos y mandá el pedido a la barra. El precio que ves es el de este momento: puede cambiar con el Happy Hour o la demanda."
+        descripcion="Elegí tus tragos y mandá el pedido a la barra. El precio que ves es el de este momento: puede cambiar con el Happy Hour."
         extra={estrategia && (
           <div className="flex gap8 wrap">
             <span className="chip">🕐 {horaCorta(estrategia.hora)}{estrategia.horaSimulada ? ' (simulada)' : ''}</span>
-            <Pill tono={estrategia.codigo === 'HAPPY_HOUR' ? 'success' : estrategia.codigo === 'DEMANDA_ALTA' ? 'warn' : 'info'}>{estrategia.nombre}</Pill>
+            <Pill tono={estrategia.codigo === 'HAPPY_HOUR' ? 'success' : 'info'}>{estrategia.nombre}</Pill>
           </div>
         )}
       />
       {estrategia?.codigo === 'HAPPY_HOUR' && (
         <div className="note success mb14">🎉 ¡Es Happy Hour! {estrategia.motivo}. Los precios ya tienen el descuento aplicado.</div>
-      )}
-      {estrategia?.codigo === 'DEMANDA_ALTA' && (
-        <div className="note mb14">La barra está con mucha demanda: rige un recargo temporal ({estrategia.nombre}).</div>
       )}
       <div className="cols-2" style={{ gridTemplateColumns: '1.25fr .87fr' }}>
         <Tarjeta titulo="Tragos" subtitulo={establecimiento.descripcion}

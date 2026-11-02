@@ -1,8 +1,13 @@
 package ar.edu.uade.barstock.model.persistence;
 
+import ar.edu.uade.barstock.model.auditoria.Auditoria;
+import ar.edu.uade.barstock.model.comanda.Comanda;
+import ar.edu.uade.barstock.model.inventario.MovimientoStock;
 import ar.edu.uade.barstock.model.inventario.TipoMovimiento;
-import ar.edu.uade.barstock.model.reporte.DatosReporte;
 import ar.edu.uade.barstock.model.reporte.FuenteDatosReporte;
+import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 
@@ -21,10 +26,17 @@ public class FuenteDatosReporteJpa implements FuenteDatosReporte {
     }
 
     @Override
-    public DatosReporte obtener(UUID establecimientoId) {
-        return new DatosReporte(
-                comandas.findByEstablecimientoIdAndDespachadaEnIsNotNullOrderByDespachadaEnAsc(establecimientoId),
-                movimientos.findByEstablecimientoIdAndTipo(establecimientoId, TipoMovimiento.COMPRA),
-                auditorias.findByEstablecimientoId(establecimientoId));
+    public List<Comanda> comandasDespachadas(Collection<UUID> establecimientos, Instant desde, Instant hasta) {
+        return comandas.buscarDespachadas(establecimientos, desde, hasta);
+    }
+
+    @Override
+    public List<MovimientoStock> compras(Collection<UUID> establecimientos, Instant desde, Instant hasta) {
+        return movimientos.buscarEntre(establecimientos, TipoMovimiento.COMPRA, desde, hasta);
+    }
+
+    @Override
+    public List<Auditoria> auditorias(Collection<UUID> establecimientos, Instant desde, Instant hasta) {
+        return auditorias.buscarEntre(establecimientos, desde, hasta);
     }
 }

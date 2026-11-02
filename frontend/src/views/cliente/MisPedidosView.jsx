@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react';
 import { api } from '../../api/client.js';
 import { useAccion } from '../../components/Avisos.jsx';
-import { itemsTexto, PillEstado } from '../../components/comandas.jsx';
+import { DevolucionModal, Devoluciones, itemsTexto, PillEstado, TotalComanda } from '../../components/comandas.jsx';
 import { hora, pesos } from '../../components/formato.js';
 import { Encabezado, Tarjeta, Vacio } from '../../components/ui.jsx';
 import { useDatos } from '../../components/useDatos.js';
@@ -38,6 +38,7 @@ function Progreso({ comanda }) {
 export default function MisPedidosView({ ir }) {
   const { establecimientoId } = useSesion();
   const [ids, setIds] = useState(() => leerMisPedidos(establecimientoId));
+  const [devolviendo, setDevolviendo] = useState(null);
   const [ejecutar, ocupado] = useAccion();
 
   // Cada pedido se consulta por su id; uno que ya no existe simplemente se omite.
@@ -50,6 +51,14 @@ export default function MisPedidosView({ ir }) {
   const cancelar = async (comanda) => {
     if (await ejecutar(() => api.comandas.anular(establecimientoId, comanda.id, 'Cancelado por el cliente'),
       `Pedido #${comanda.numero} cancelado`)) pedidos.recargar();
+  };
+
+  const devolver = async (comanda, devolucion) => {
+    if (await ejecutar(() => api.comandas.devolver(establecimientoId, comanda.id, devolucion),
+      (c) => `Devolución registrada. Tu pedido #${c.numero} queda en ${pesos(c.totalNeto)}`)) {
+      setDevolviendo(null);
+      pedidos.recargar();
+    }
   };
 
   const olvidarFinalizados = () => {
@@ -79,10 +88,11 @@ export default function MisPedidosView({ ir }) {
                      subtitulo={`${c.cliente ? `${c.cliente} · ` : ''}enviado a las ${hora(c.registradaEn)}`}
                      extra={<PillEstado comanda={c} />}>
               <div className="order-items" style={{ fontSize: 13 }}>{itemsTexto(c)}</div>
-              <div className="small"><b>{pesos(c.total)}</b> <span className="muted">· {c.estrategiaPrecio}</span></div>
+              <TotalComanda comanda={c} />
+              <Devoluciones comanda={c} />
               {c.estado === 'ANULADA' ? (
                 <div className="note danger mt12">
-                  {c.estadoAlAnular === 'DESPACHADA' ? 'El pedido se registró como devuelto.' : 'El pedido fue anulado.'} Motivo: {c.motivoAnulacion}
+                  {c.estadoAlAnular === 'DESPACHADA' ? 'Devolviste todos los tragos del pedido.' : `El pedido fue anulado. Motivo: ${c.motivoAnulacion}`}
                 </div>
               ) : (
                 <Progreso comanda={c} />
@@ -93,10 +103,17 @@ export default function MisPedidosView({ ir }) {
                   × Cancelar pedido
                 </button>
               )}
+              {c.acciones.includes('DEVOLVER') && (
+                <button className="btn btn-small mt12" type="button" disabled={ocupado} onClick={() => setDevolviendo(c)}>
+                  ↩ Devolver un trago
+                </button>
+              )}
             </Tarjeta>
           ))}
         </div>
       )}
+      <DevolucionModal key={devolviendo ? `d-${devolviendo.id}` : 'sin-devolucion'} comanda={devolviendo} ocupado={ocupado}
+                       onCerrar={() => setDevolviendo(null)} onConfirmar={devolver} />
     </>
   );
 }

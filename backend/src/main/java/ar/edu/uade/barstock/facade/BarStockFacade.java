@@ -8,12 +8,15 @@ import ar.edu.uade.barstock.model.comanda.OrigenComanda;
 import ar.edu.uade.barstock.model.establecimiento.ConfiguracionAlertas;
 import ar.edu.uade.barstock.model.establecimiento.Establecimiento;
 import ar.edu.uade.barstock.model.establecimiento.EstablecimientoService;
+import ar.edu.uade.barstock.model.establecimiento.HorarioAtencion;
 import ar.edu.uade.barstock.model.establecimiento.PoliticaPrecio;
+import ar.edu.uade.barstock.model.establecimiento.Turno;
 import ar.edu.uade.barstock.model.inventario.AjusteStock;
 import ar.edu.uade.barstock.model.inventario.Insumo;
 import ar.edu.uade.barstock.model.inventario.Inventario;
 import ar.edu.uade.barstock.model.inventario.InventarioService;
 import ar.edu.uade.barstock.model.inventario.MovimientoStock;
+import ar.edu.uade.barstock.model.inventario.RecuentoInsumo;
 import ar.edu.uade.barstock.model.inventario.UnidadMedida;
 import ar.edu.uade.barstock.model.notificacion.BitacoraNotificaciones;
 import ar.edu.uade.barstock.model.notificacion.RegistroNotificacion;
@@ -26,12 +29,16 @@ import ar.edu.uade.barstock.model.receta.Receta;
 import ar.edu.uade.barstock.model.receta.RecetaService;
 import ar.edu.uade.barstock.model.reporte.ContenidoReporte;
 import ar.edu.uade.barstock.model.reporte.GeneradorReportes;
+import ar.edu.uade.barstock.model.reporte.Periodo;
+import ar.edu.uade.barstock.model.reporte.ReporteDiario;
 import ar.edu.uade.barstock.model.reporte.TipoSeccion;
 import ar.edu.uade.barstock.model.traza.EventoPatron;
 import ar.edu.uade.barstock.model.traza.TrazaPatrones;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.NumberFormat;
+import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -87,12 +94,14 @@ public class BarStockFacade {
         return establecimientos.consultar(id);
     }
 
-    public Establecimiento crearEstablecimiento(String codigo, String nombre, String zona, String descripcion) {
-        return establecimientos.crear(codigo, nombre, zona, descripcion);
+    public Establecimiento crearEstablecimiento(String codigo, String nombre, String zona, String direccion,
+                                                String descripcion, HorarioAtencion horario) {
+        return establecimientos.crear(codigo, nombre, zona, direccion, descripcion, horario);
     }
 
-    public Establecimiento editarEstablecimiento(UUID id, String nombre, String zona, String descripcion) {
-        return establecimientos.editar(id, nombre, zona, descripcion);
+    public Establecimiento editarEstablecimiento(UUID id, String nombre, String zona, String direccion,
+                                                 String descripcion, HorarioAtencion horario) {
+        return establecimientos.editar(id, nombre, zona, direccion, descripcion, horario);
     }
 
     public Establecimiento configurarPrecios(UUID id, PoliticaPrecio politica) {
@@ -185,7 +194,7 @@ public class BarStockFacade {
     @Transactional(readOnly = true)
     public Carta consultarCarta(UUID establecimientoId) {
         Establecimiento establecimiento = establecimientos.consultar(establecimientoId);
-        EstrategiaVigente vigente = precios.vigente(establecimiento, comandas.contarEnCurso(establecimientoId));
+        EstrategiaVigente vigente = precios.vigente(establecimiento);
         return Carta.armar(vigente, recetas.listar(establecimientoId, false));
     }
 
@@ -204,7 +213,7 @@ public class BarStockFacade {
         Establecimiento establecimiento = establecimientos.bloquear(establecimientoId);
         Map<Receta, Integer> lineas = recetas.armarPedido(establecimientoId, pedido);
         inventario.verificarDisponibilidad(establecimientoId, recetas.consumosDe(establecimientoId, pedido));
-        EstrategiaVigente vigente = precios.vigente(establecimiento, comandas.contarEnCurso(establecimientoId));
+        EstrategiaVigente vigente = precios.vigente(establecimiento);
         Comanda comanda = comandas.registrar(establecimiento, origen, cliente, vigente.estrategia(), lineas);
         traza.registrar(establecimientoId, "Strategy", "Precio fijado con " + vigente.estrategia().getClass().getSimpleName()
                 + " (" + vigente.motivo() + "): " + pesos(comanda.getTotal()));
@@ -230,12 +239,21 @@ public class BarStockFacade {
         return comanda;
     }
 
+    /** Solo antes del despacho: no hay stock que reponer. Después del despacho se devuelven tragos. */
     @Transactional
     public Comanda anularComanda(UUID establecimientoId, UUID comandaId, String motivo) {
         Comanda comanda = comandas.anular(establecimientoId, comandaId, motivo);
-        traza.registrar(establecimientoId, "Facade", comanda.fueDevuelta()
-                ? "anularComanda(#" + comanda.getNumero() + "): devolución, se revierte el ingreso sin reponer insumos"
-                : "anularComanda(#" + comanda.getNumero() + "): sin cambios en el inventario");
+        traza.registrar(establecimientoId, "Facade", "anularComanda(#" + comanda.getNumero()
+                + "): sin cambios en el inventario");
+        return comanda;
+    }
+
+    /** Devuelve algunas unidades de un trago despachado: se reintegra el importe, no los insumos. */
+    @Transactional
+    public Comanda devolverTrago(UUID establecimientoId, UUID comandaId, UUID itemId, int cantidad, String motivo) {
+        Comanda comanda = comandas.devolver(establecimientoId, comandaId, itemId, cantidad, motivo);
+        traza.registrar(establecimientoId, "Facade", "devolverTrago(#" + comanda.getNumero() + "): " + cantidad
+                + " unidad(es); se reintegra " + pesos(comanda.importeDevuelto()) + " en total, sin reponer insumos");
         return comanda;
     }
 
@@ -256,7 +274,7 @@ public class BarStockFacade {
     // ── Auditoría ─────────────────────────────────────────────────────
 
     @Transactional
-    public Auditoria auditarInventario(UUID establecimientoId, String responsable, Map<UUID, BigDecimal> recuento) {
+    public Auditoria auditarInventario(UUID establecimientoId, String responsable, Map<UUID, RecuentoInsumo> recuento) {
         Establecimiento establecimiento = establecimientos.bloquear(establecimientoId);
         List<AjusteStock> ajustes = inventario.ajustarARecuento(establecimientoId, recuento,
                 "Recuento físico #" + establecimiento.verProximoNumeroAuditoria());
@@ -273,9 +291,20 @@ public class BarStockFacade {
 
     // ── Reportes, alertas y traza ─────────────────────────────────────
 
-    public ContenidoReporte generarReporte(UUID establecimientoId, List<TipoSeccion> secciones) {
-        establecimientos.verificarExistencia(establecimientoId);
-        return reportes.generar(establecimientoId, secciones);
+    /**
+     * Sin establecimientos reporta todos. Sin fechas toma las últimas 7 jornadas; sin turno, los dos.
+     */
+    public ContenidoReporte generarReporte(Collection<UUID> establecimientoIds, LocalDate desde, LocalDate hasta,
+                                           Turno turno, List<TipoSeccion> secciones) {
+        LocalDate fin = hasta != null ? hasta : reportes.jornadaActual();
+        Periodo periodo = new Periodo(desde != null ? desde : fin.minusDays(6), fin);
+        return reportes.generar(establecimientos.listar(establecimientoIds), periodo, turno, secciones);
+    }
+
+    /** Sin jornada usa la actual (antes de las 6:00 todavía es la del día anterior). */
+    public ReporteDiario generarReporteDiario(Collection<UUID> establecimientoIds, LocalDate jornada) {
+        return reportes.generarDiario(establecimientos.listar(establecimientoIds),
+                jornada != null ? jornada : reportes.jornadaActual());
     }
 
     public List<RegistroNotificacion> listarNotificaciones(UUID establecimientoId, int limite) {

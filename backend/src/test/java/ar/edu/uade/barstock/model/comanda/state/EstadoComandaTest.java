@@ -47,7 +47,7 @@ class EstadoComandaTest {
         assertThat(comanda.getEstado()).isSameAs(EstadosComanda.DESPACHADA);
         assertThat(comanda.getPreparadaEn()).isEqualTo(AHORA.plusSeconds(60));
         assertThat(comanda.getDespachadaEn()).isEqualTo(AHORA.plusSeconds(120));
-        assertThat(comanda.accionesPermitidas()).containsExactly(AccionComanda.ANULAR);
+        assertThat(comanda.accionesPermitidas()).containsExactly(AccionComanda.DEVOLVER);
         assertThat(comanda.cuentaComoVenta()).isTrue();
         assertThat(comanda.getEstado().enCurso()).isFalse();
     }
@@ -74,16 +74,52 @@ class EstadoComandaTest {
     }
 
     @Test
-    void anularDespuesDelDespachoEsUnaDevolucionQueDejaDeContarComoVenta() {
+    void unaDevolucionParcialDescuentaEseTragoSinAnularLaComanda() {
         comanda.preparar(AHORA);
         comanda.despachar(AHORA);
-        comanda.anular("  El cliente lo devolvió ", AHORA.plusSeconds(300));
+        var item = comanda.getItems().get(0);
+        comanda.devolver(item.getId(), 1, "  Estaba muy dulce ", AHORA.plusSeconds(300));
+
+        assertThat(comanda.getEstado()).isSameAs(EstadosComanda.DESPACHADA);
+        assertThat(comanda.getItems().get(0).cantidadVendida()).isEqualTo(1);
+        assertThat(comanda.importeDevuelto()).isEqualByComparingTo("9800");
+        assertThat(comanda.ventaNeta()).isEqualByComparingTo("9800");
+        assertThat(comanda.unidadesVendidas()).isEqualTo(1);
+        assertThat(comanda.getDevoluciones()).singleElement().satisfies(d -> {
+            assertThat(d.getMotivo()).isEqualTo("Estaba muy dulce");
+            assertThat(d.getNombreReceta()).isEqualTo("Gin Tonic");
+        });
+        assertThatThrownBy(() -> comanda.devolver(item.getId(), 2, "Otro motivo", AHORA))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Podés devolver entre 1 y 1 Gin Tonic");
+    }
+
+    @Test
+    void alDevolverTodasLasUnidadesLaComandaQuedaAnuladaComoDevolucion() {
+        comanda.preparar(AHORA);
+        comanda.despachar(AHORA);
+        comanda.devolver(comanda.getItems().get(0).getId(), 2, "El cliente se fue", AHORA.plusSeconds(300));
 
         assertThat(comanda.getEstado()).isSameAs(EstadosComanda.ANULADA);
         assertThat(comanda.getEstadoAlAnular()).isEqualTo("DESPACHADA");
-        assertThat(comanda.getMotivoAnulacion()).isEqualTo("El cliente lo devolvió");
+        assertThat(comanda.getMotivoAnulacion()).isEqualTo("El cliente se fue");
         assertThat(comanda.fueDevuelta()).isTrue();
         assertThat(comanda.cuentaComoVenta()).isFalse();
+        assertThat(comanda.importeDevuelto()).isEqualByComparingTo("19600");
+        assertThat(comanda.unidadesDevueltas()).isEqualTo(2);
+    }
+
+    @Test
+    void soloSeDevuelveDespuesDelDespachoYUnaComandaDespachadaNoSeAnulaEntera() {
+        var item = comanda.getItems().get(0);
+        assertThatThrownBy(() -> comanda.devolver(item.getId(), 1, "Antes de tiempo", AHORA))
+                .isInstanceOf(TransicionInvalidaException.class)
+                .hasMessage("La comanda #7 está Registrada: no se puede registrar una devolución");
+        comanda.preparar(AHORA);
+        comanda.despachar(AHORA);
+        assertThatThrownBy(() -> comanda.anular("Trago devuelto", AHORA)).isInstanceOf(TransicionInvalidaException.class);
+        assertThatThrownBy(() -> comanda.devolver(java.util.UUID.randomUUID(), 1, "No existe", AHORA))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

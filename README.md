@@ -22,9 +22,10 @@ Trabajo Práctico — *Proceso de Desarrollo de Software*, UADE (Grupo 4).
 > **Estado:** aplicación completa con los seis patrones implementados y testeados, y una vista por rol (Cliente,
 > Bartender, Encargado y Dueño) sobre varios establecimientos. Flujo comanda → preparación → despacho con descuento
 > atómico en ml, precios dinámicos, alertas de reposición, compras, auditoría de mermas y reportes componibles.
-> 110 pruebas unitarias y 19 de integración con PostgreSQL real. Ver la [API](docs/api/endpoints.md), el
+> 129 pruebas unitarias y 20 de integración con PostgreSQL real. Ver la [API](docs/api/endpoints.md), el
 > [UML implementado](docs/uml/BarStock_Implementado.puml) y las decisiones de [ADR-002](docs/decisiones/ADR-002-roles-y-establecimientos.md)
-> (roles, establecimientos y reglas del [ADR-001](docs/decisiones/ADR-001-reglas-de-despacho.md) que se aplicaron; ambos pendientes de aprobación del equipo).
+> (roles, establecimientos y reglas del [ADR-001](docs/decisiones/ADR-001-reglas-de-despacho.md) que se aplicaron) y
+> [ADR-003](docs/decisiones/ADR-003-revision-actividad-3.md) (ajustes de la revisión); todos pendientes de aprobación del equipo.
 > El reparto original está en el [plan de trabajo](docs/PLAN_DE_TRABAJO.md).
 
 ---
@@ -41,20 +42,20 @@ Al ingresar se elige el establecimiento y el rol. Cada rol ve solo sus pantallas
 
 | Rol | Vistas | Qué hace |
 |---|---|---|
-| **Cliente** | Carta · Mis pedidos | Ve el menú con el precio vigente (Happy Hour, demanda alta), hace su pedido y sigue su estado en vivo. |
-| **Bartender** | Barra / comandas · Stock · Cierre de turno | Recibe los pedidos de clientes, registra comandas, las prepara y despacha; consulta stock y carga el recuento físico. |
-| **Encargado** | Inventario y compras · Auditoría · Alertas | Gestiona insumos, compra envases, audita mermas y revisa los avisos de reposición. |
-| **Dueño** | Resumen · Reportes · Precios · Menú · Establecimientos | Compara sus bares, arma reportes, configura la política de precios, el menú y los canales de alerta. |
+| **Cliente** | Carta · Mis pedidos | Ve el menú con el precio vigente (normal o Happy Hour), hace su pedido, lo sigue en vivo y puede devolver un trago. |
+| **Bartender** | Barra / comandas · Stock · Cierre de turno | Recibe los pedidos de clientes, registra comandas, las prepara y despacha, registra devoluciones de tragos; consulta stock en ml y botellas y carga el recuento físico. |
+| **Encargado** | Inventario y compras · Auditoría · Alertas | Compra botellas, edita y da de baja insumos (no los crea), audita mermas con comentarios y revisa los avisos de reposición. |
+| **Dueño** | Resumen · Reportes · Precios · Menú e insumos · Establecimientos | Compara sus bares, arma reportes por bar, fecha y turno (y el diario por jornada), configura los precios, el menú, da de alta insumos con su stock inicial y edita la dirección y los horarios de cada bar. |
 
 **Capacidades principales**
 
-- **Inventario:** insumos con unidad, costo unitario, contenido por envase y punto de reorden; compras por envase; descuento atómico por receta; historial de movimientos.
+- **Inventario:** insumos con código, unidad, costo unitario, contenido por envase y punto de reorden; stock en ml y en botellas; compras por envase; descuento atómico por receta; historial de movimientos.
 - **Recetas:** ingredientes con su cantidad y cálculo del costo teórico; baja lógica del menú.
-- **Comandas:** ciclo de vida `Registrada → EnPreparacion → Despachada`, con `Anulada` (y devolución después del despacho).
-- **Precios:** normal, Happy Hour (con margen mínimo) y demanda alta, intercambiables en tiempo de ejecución.
-- **Auditoría:** stock teórico vs. recuento físico, ajuste y merma valorizada.
-- **Alertas y reportes:** aviso al cruzar el punto de reposición (panel, email, SMS o WhatsApp simulados); reportes componibles.
-- **Varios establecimientos:** cada bar con su inventario, menú, comandas, precios y alertas.
+- **Comandas:** ciclo de vida `Registrada → EnPreparacion → Despachada`, con `Anulada`. Después del despacho se devuelven tragos sueltos (trago, cantidad y motivo) sin anular el resto; si se devuelve todo, la comanda queda anulada.
+- **Precios:** normal y Happy Hour (con margen mínimo), intercambiables en tiempo de ejecución.
+- **Auditoría:** stock teórico vs. recuento físico en botellas cerradas más lo que queda en la abierta, con un comentario por insumo; ajuste y merma valorizada.
+- **Alertas y reportes:** aviso al cruzar el punto de reposición (panel, email, SMS o WhatsApp simulados); reportes componibles filtrados por establecimiento, período de jornadas y turno, y reporte diario (mediodía + noche, con la madrugada en la misma jornada).
+- **Varios establecimientos:** cada bar con su dirección, horarios de turno, inventario, menú, comandas, precios y alertas.
 
 ---
 
@@ -79,18 +80,21 @@ Al ingresar se elige el establecimiento y el rol. Cada rol ve solo sus pantallas
 
 | Patrón | Clases | Dónde se ve en la app | Test |
 |---|---|---|---|
-| State | `EstadoComanda` → `Registrada`, `EnPreparacion`, `Despachada`, `Anulada` (`model/comanda/state`) | Los botones del bartender salen de `acciones` del estado; el cliente sigue los pasos | `EstadoComandaTest` |
-| Strategy | `EstrategiaPrecio` → `PrecioNormal`, `PrecioHappyHour`, `PrecioDemandaAlta`; `SelectorEstrategiaPrecio` (`model/precio`) | Precio de la carta y de cada comanda; el dueño fuerza o automatiza la estrategia | `EstrategiaPrecioTest`, `SelectorEstrategiaPrecioTest` |
+| State | `EstadoComanda` → `Registrada`, `EnPreparacion`, `Despachada`, `Anulada` (`model/comanda/state`) | Los botones del bartender salen de `acciones` del estado; el cliente sigue los pasos; solo `Despachada` admite devolver tragos | `EstadoComandaTest` |
+| Strategy | `EstrategiaPrecio` → `PrecioNormal`, `PrecioHappyHour`; `SelectorEstrategiaPrecio` (`model/precio`) | Precio de la carta y de cada comanda; el dueño fuerza o automatiza la estrategia | `EstrategiaPrecioTest`, `SelectorEstrategiaPrecioTest` |
 | Observer | `Inventario` (sujeto) → `ObservadorStock`: `AlertaStock`, `BitacoraStock` (`model/inventario`) | Alerta de reposición al despachar, comprar o auditar | `InventarioTest`, `AlertaStockTest` |
 | Simple Factory | `NotificacionFactory.crear(TipoNotificacion)` → `NotificacionPanel`, `Email`, `Sms`, `WhatsApp` (`model/notificacion`) | Canales de alerta configurados por bar | `NotificacionFactoryTest` |
 | Facade | `BarStockFacade` (`facade`) | Despacho: coordina Comandas, Recetas e Inventario en una transacción | `BarStockFacadeTest`, `FlujoComandaIT` |
-| Decorator | `Reporte` → `ReporteBase`; `ReporteDecorator` → `ReporteConGrafico`, `ConTendencias`, `ConMermas`, `ConMargen` (`model/reporte`) | El dueño elige las secciones y ve la cadena aplicada | `ReporteDecoratorTest` |
+| Decorator | `Reporte` → `ReporteBase`; `ReporteDecorator` → `ReporteConGrafico`, `ConTendencias`, `ConMermas`, `ConMargen` (`model/reporte`) | El dueño elige las secciones del reporte; la cadena aplicada viaja en `composicion` | `ReporteDecoratorTest`, `GeneradorReportesTest` |
 
 También se aplican **MVC**, **Repository** (Spring Data) y **DTO** para el acceso a datos y el intercambio entre capas,
 y GRASP: Experto (`Receta.calcularCosto()`, `Comanda.calcularTotal()`), Creador (`Comanda` crea sus `ItemComanda`),
 Controlador (controladores REST), Fabricación pura (`TrazaPatrones`, `BitacoraNotificaciones`) y Variaciones protegidas
-(`EstrategiaPrecio`, `Notificacion`, `FuenteDatosReporte`). El botón **◈ Patrones** de la app muestra la traza real de
-cada patrón mientras se usa.
+(`EstrategiaPrecio`, `Notificacion`, `FuenteDatosReporte`).
+
+La interfaz no muestra nombres de patrones ni detalles técnicos: la explicación de cada patrón, dónde está y cómo
+mostrarlo en la defensa está en [docs/BarStock_Patrones_y_detalles_tecnicos.docx](docs/BarStock_Patrones_y_detalles_tecnicos.docx).
+La traza real de cada patrón sigue disponible en `GET /api/establecimientos/{id}/traza`.
 
 ---
 
@@ -161,7 +165,7 @@ barstock-solutions/
 │       │   │   │   │   └── state/           # EstadoComanda, Registrada, EnPreparacion,
 │       │   │   │   │                        # Despachada, Anulada                           (State)
 │       │   │   │   ├── precio/              # EstrategiaPrecio, PrecioNormal,
-│       │   │   │   │                        # PrecioHappyHour, PrecioDemandaAlta            (Strategy)
+│       │   │   │   │                        # PrecioNormal, PrecioHappyHour                 (Strategy)
 │       │   │   │   ├── notificacion/        # Notificacion, Email, SMS, NotificacionFactory,
 │       │   │   │   │                        # TipoNotificacion                              (Simple Factory)
 │       │   │   │   ├── reporte/             # Reporte, ReporteBase, ReporteDecorator,
@@ -188,20 +192,23 @@ barstock-solutions/
         ├── main.jsx
         ├── api/                  # cliente HTTP hacia /api (único punto de contacto con el backend)
         ├── views/
-        │   ├── bartender/        # BartenderView: registrar venta, stock, recuento físico
-        │   └── encargado/        # EncargadoView: compras, recetas, auditoría, reportes
+        │   ├── cliente/          # carta y mis pedidos (con devolución de tragos)
+        │   ├── bartender/        # barra, stock en ml y botellas, cierre de turno
+        │   ├── encargado/        # inventario y compras, auditoría, alertas
+        │   └── dueno/            # resumen, reportes, precios, menú e insumos, establecimientos
         ├── components/           # componentes reutilizables
         └── routes/               # ruteo y guardas por rol
 ```
 
 El árbol muestra la estructura implementada. Además de los paquetes del árbol, el modelo tiene
-`model/establecimiento` (bar, `PoliticaPrecio` y `ConfiguracionAlertas`) y `model/traza` (`TrazaPatrones`).
+`model/establecimiento` (bar, `PoliticaPrecio`, `ConfiguracionAlertas`, `HorarioAtencion` y `Turno`) y `model/traza` (`TrazaPatrones`).
 Los controladores son `EstablecimientoController`, `InventarioController`, `CompraController`, `RecetaController`,
 `CartaController`, `ComandaController`, `AuditoriaController`, `ReporteController` y `SeguimientoController`.
 El frontend tiene una carpeta por rol en `views/` (`cliente`, `bartender`, `encargado`, `dueno`) y la sesión en `session/`.
 
 Migraciones: V1 crea el esquema, V2 la tabla `insumo`, V3 restringe las cantidades a enteros, V4 agrega
-`establecimiento` y asigna cada insumo a un bar, V5 recetas y comandas, y V6 movimientos, auditorías y notificaciones.
+`establecimiento` y asigna cada insumo a un bar, V5 recetas y comandas, V6 movimientos, auditorías y notificaciones,
+y V7 los ajustes de la revisión (dirección y horarios, sin demanda alta, recuento con comentario y devolución por trago).
 Los datos de ejemplo están en `db/demo/R__datos_demo.sql` y se cargan con el perfil `demo`.
 El prototipo de consola original se conserva en `src/` y no forma parte del build de Spring Boot.
 Los diagramas están en `docs/uml/` (el implementado es `BarStock_Implementado.puml`) y las entregas en `docs/entregas/`.
@@ -240,14 +247,15 @@ docker compose up --build
 - Salud de la API y PostgreSQL: <http://localhost:8080/api/health>
 
 Docker Compose activa el perfil `demo`, que carga **Bar Ámbar** y **La Esquina** con los insumos y recetas del
-prototipo (Campari queda cerca de su punto de reposición para mostrar la alerta con un Negroni). Para una base sin
+prototipo (Campari queda cerca de su punto de reposición para mostrar la alerta con un Negroni) y, en una base nueva,
+cuatro semanas de ventas, recuentos y compras para que los reportes tengan datos. Para una base sin
 datos de ejemplo, poné `SPRING_PROFILES_ACTIVE=` vacío en `.env`. Para volver a los datos iniciales, `make reset-db`
 (borra la base local) y otra vez `make up`.
 
 **Demo sugerida:** abrí dos pestañas. En una entrá como **Cliente** y pedí un Negroni; en la otra como **Bartender**:
 el pedido aparece solo, se prepara y se despacha, y el cliente ve el cambio de estado. Después pasá por **Encargado**
-(compra y recuento físico) y **Dueño** (Happy Hour forzado y reporte con decoradores). La guía completa está en el
-botón **📋 Guía** de la aplicación.
+(compra y recuento físico en botellas) y **Dueño** (Happy Hour forzado, reportes por turno y reporte diario).
+El guion de la defensa, con los patrones que se ven en cada paso, está en el docx de `docs/`.
 
 En PowerShell, desde la carpeta del repositorio:
 
@@ -376,7 +384,7 @@ y ensayo, con congelamiento a las 22:00.
 Las reglas están en [ADR-001](docs/decisiones/ADR-001-reglas-de-despacho.md) y lo que se aplicó en el código, en
 [ADR-002](docs/decisiones/ADR-002-roles-y-establecimientos.md). Si el equipo cambia alguna, se cambia el código afectado.
 
-1. **Anulación post-despacho:** es una devolución: el importe deja de contar como ingreso y **no** se repone stock.
+1. **Devolución post-despacho:** se devuelven tragos sueltos; su importe deja de contar como ingreso y **no** se repone stock ([ADR-003](docs/decisiones/ADR-003-revision-actividad-3.md)).
 2. **Momento del descuento de stock:** al pasar a `Despachada`, en una única transacción y con bloqueo de fila (sin doble descuento).
 3. **Precisión numérica:** `BigDecimal` para cantidades enteras (ml o unidades) y montos con dos decimales.
 4. **Estrategia de precio:** vive en `Comanda`; el precio se fija al registrar y se guarda por ítem.
@@ -392,6 +400,8 @@ Las reglas están en [ADR-001](docs/decisiones/ADR-001-reglas-de-despacho.md) y 
 - `docs/uml/` — diagramas PlantUML (general y por patrón). [BarStock_Implementado.puml](docs/uml/BarStock_Implementado.puml) refleja el código actual.
 - [API](docs/api/endpoints.md) — todos los endpoints por establecimiento; [inventario](docs/api/inventario.md) en detalle.
 - [ADR-002: roles y establecimientos](docs/decisiones/ADR-002-roles-y-establecimientos.md) — decisiones aplicadas en la aplicación.
+- [ADR-003: ajustes de la revisión](docs/decisiones/ADR-003-revision-actividad-3.md) — permisos de insumos, recuento en botellas, jornadas y turnos, devolución por trago.
+- [Patrones y detalles técnicos](docs/BarStock_Patrones_y_detalles_tecnicos.docx) — lo que se quitó de la interfaz, para la defensa.
 - [Plan de trabajo](docs/PLAN_DE_TRABAJO.md) — reparto, tareas, dependencias y pruebas a cargo del líder.
 - [ADR-000: base ejecutable](docs/decisiones/ADR-000-base-ejecutable.md) — registro del andamiaje existente.
 - [ADR-001: reglas de despacho](docs/decisiones/ADR-001-reglas-de-despacho.md) — propuesta de reglas de negocio.

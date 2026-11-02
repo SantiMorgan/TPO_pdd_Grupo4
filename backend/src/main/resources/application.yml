@@ -12,6 +12,8 @@ spring:
     properties:
       hibernate:
         default_schema: barstock
+        # Los reportes de varias jornadas leen cientos de comandas: sus ítems se cargan de a 100.
+        default_batch_fetch_size: 100
   flyway:
     default-schema: barstock
     schemas: barstock

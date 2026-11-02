@@ -91,14 +91,13 @@ class BarStockFacadeTest {
 
     @Test
     void registrarNumeraVerificaStockEligeLaEstrategiaYRegistra() {
-        Establecimiento establecimiento = new Establecimiento("AMBAR", "Bar Ámbar", "Palermo", "");
+        Establecimiento establecimiento = new Establecimiento("AMBAR", "Bar Ámbar", "Palermo", "Gorriti 4850", "");
         List<CantidadReceta> pedido = List.of(new CantidadReceta(ginTonic.getId(), 1));
         var vigente = new EstrategiaVigente(new PrecioNormal(), "Horario normal", LocalTime.NOON, false);
         when(establecimientos.bloquear(bar)).thenReturn(establecimiento);
         when(recetas.armarPedido(bar, pedido)).thenReturn(Map.of(ginTonic, 1));
         when(recetas.consumosDe(bar, pedido)).thenReturn(consumos);
-        when(comandas.contarEnCurso(bar)).thenReturn(2L);
-        when(precios.vigente(establecimiento, 2L)).thenReturn(vigente);
+        when(precios.vigente(establecimiento)).thenReturn(vigente);
         when(comandas.registrar(establecimiento, OrigenComanda.CLIENTE, "Mesa 2", vigente.estrategia(),
                 Map.of(ginTonic, 1))).thenReturn(comanda);
 
@@ -108,7 +107,7 @@ class BarStockFacadeTest {
         orden.verify(establecimientos).bloquear(bar);
         orden.verify(recetas).armarPedido(bar, pedido);
         orden.verify(inventario).verificarDisponibilidad(bar, consumos);
-        orden.verify(precios).vigente(establecimiento, 2L);
+        orden.verify(precios).vigente(establecimiento);
         orden.verify(comandas).registrar(establecimiento, OrigenComanda.CLIENTE, "Mesa 2", vigente.estrategia(),
                 Map.of(ginTonic, 1));
     }
@@ -116,7 +115,7 @@ class BarStockFacadeTest {
     @Test
     void sinStockSuficienteNoSeRegistraLaComanda() {
         List<CantidadReceta> pedido = List.of(new CantidadReceta(ginTonic.getId(), 50));
-        when(establecimientos.bloquear(bar)).thenReturn(new Establecimiento("AMBAR", "Bar Ámbar", "Palermo", ""));
+        when(establecimientos.bloquear(bar)).thenReturn(new Establecimiento("AMBAR", "Bar Ámbar", "Palermo", "Gorriti 4850", ""));
         when(recetas.consumosDe(bar, pedido)).thenReturn(ginTonic.consumos(50));
         doThrow(new StockInsuficienteException(List.of()))
                 .when(inventario).verificarDisponibilidad(bar, ginTonic.consumos(50));

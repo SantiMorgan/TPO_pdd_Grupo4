@@ -127,6 +127,16 @@ public class Insumo {
         stockActual = decimalValido(stockActual.add(cantidadPositiva(cantidad)), 0, "stockActual");
     }
 
+    /** Convierte un recuento en envases cerrados más el resto del abierto a la unidad base. */
+    public BigDecimal cantidadContada(int envasesCompletos, BigDecimal restante) {
+        BigDecimal resto = decimalValido(restante, 0, "restante");
+        if (resto.compareTo(BigDecimal.valueOf(contenidoEnvase)) > 0) {
+            throw new IllegalArgumentException("En " + nombre + " lo que queda en el envase abierto no puede superar "
+                    + contenidoEnvase + " " + unidadMedida.simbolo());
+        }
+        return BigDecimal.valueOf((long) envasesCompletos * contenidoEnvase).add(resto);
+    }
+
     /** Lleva el stock al valor contado y devuelve la diferencia (físico − teórico). */
     public BigDecimal ajustarA(BigDecimal stockFisico) {
         BigDecimal fisico = decimalValido(stockFisico, 0, "stockFisico");

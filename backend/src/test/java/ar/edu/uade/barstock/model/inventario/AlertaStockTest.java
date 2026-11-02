@@ -35,7 +35,7 @@ class AlertaStockTest {
 
     @BeforeEach
     void preparar() {
-        bar = new Establecimiento("AMBAR", "Bar Ámbar", "Palermo", "");
+        bar = new Establecimiento("AMBAR", "Bar Ámbar", "Palermo", "Gorriti 4850", "");
         bar.cambiarAlertas(new ConfiguracionAlertas(EnumSet.of(TipoNotificacion.PANEL, TipoNotificacion.EMAIL),
                 "encargado@ambar.example", null));
         when(establecimientos.findById(bar.getId())).thenReturn(Optional.of(bar));

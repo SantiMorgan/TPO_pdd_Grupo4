@@ -9,7 +9,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Agrega la contribución de cada trago: ingresos cobrados menos el costo teórico de sus insumos. */
+/**
+ * Agrega la contribución de cada trago: lo cobrado (sin devoluciones) menos el costo teórico de todos
+ * los que se prepararon, porque un trago devuelto también consumió insumos.
+ */
 public class ReporteConMargen extends ReporteDecorator {
     public ReporteConMargen(Reporte reporte, DatosReporte datos) {
         super(reporte, datos);
@@ -19,13 +22,14 @@ public class ReporteConMargen extends ReporteDecorator {
     protected SeccionReporte seccion() {
         Map<String, BigDecimal[]> porTrago = new LinkedHashMap<>();
         Map<String, Integer> unidades = new LinkedHashMap<>();
-        for (Comanda comanda : datos.vendidas()) {
+        for (Comanda comanda : datos.despachadas()) {
+            boolean cobrada = comanda.cuentaComoVenta();
             for (ItemComanda item : comanda.getItems()) {
                 BigDecimal[] acumulado = porTrago.computeIfAbsent(item.getNombreReceta(),
                         nombre -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
-                acumulado[0] = acumulado[0].add(item.subtotal());
+                acumulado[0] = acumulado[0].add(cobrada ? item.subtotalVendido() : BigDecimal.ZERO);
                 acumulado[1] = acumulado[1].add(item.costo());
-                unidades.merge(item.getNombreReceta(), item.getCantidad(), Integer::sum);
+                unidades.merge(item.getNombreReceta(), cobrada ? item.cantidadVendida() : 0, Integer::sum);
             }
         }
         List<MargenTrago> margenes = porTrago.entrySet().stream().map(e -> {

@@ -27,8 +27,14 @@ public class Establecimiento {
     @Column(nullable = false, length = 80)
     private String zona;
 
+    @Column(nullable = false, length = 120)
+    private String direccion;
+
     @Column(nullable = false, length = 150)
     private String descripcion;
+
+    @Embedded
+    private HorarioAtencion horario;
 
     @Column(name = "proximo_numero_comanda", nullable = false)
     private int proximoNumeroComanda;
@@ -49,10 +55,11 @@ public class Establecimiento {
         // Constructor requerido por JPA.
     }
 
-    public Establecimiento(String codigo, String nombre, String zona, String descripcion) {
+    public Establecimiento(String codigo, String nombre, String zona, String direccion, String descripcion) {
         this.id = UUID.randomUUID();
         this.codigo = normalizarCodigo(codigo);
-        editar(nombre, zona, descripcion);
+        editar(nombre, zona, direccion, descripcion);
+        this.horario = HorarioAtencion.porDefecto();
         this.proximoNumeroComanda = 1;
         this.proximoNumeroAuditoria = 1;
         this.politicaPrecio = PoliticaPrecio.porDefecto();
@@ -63,13 +70,19 @@ public class Establecimiento {
         return Validacion.texto(codigo, 30, "codigo").toUpperCase(Locale.ROOT);
     }
 
-    public void editar(String nombre, String zona, String descripcion) {
+    public void editar(String nombre, String zona, String direccion, String descripcion) {
         String nombreValidado = Validacion.texto(nombre, 80, "nombre");
         String zonaValidada = Validacion.texto(zona, 80, "zona");
+        String direccionValidada = Validacion.texto(direccion, 120, "direccion");
         String descripcionValidada = Validacion.textoOpcional(descripcion, 150, "descripcion");
         this.nombre = nombreValidado;
         this.zona = zonaValidada;
+        this.direccion = direccionValidada;
         this.descripcion = descripcionValidada;
+    }
+
+    public void cambiarHorario(HorarioAtencion nuevo) {
+        this.horario = Objects.requireNonNull(nuevo, "El horario de atención es obligatorio");
     }
 
     /** Requiere la fila bloqueada para que dos comandas simultáneas no reciban el mismo número. */
@@ -97,7 +110,9 @@ public class Establecimiento {
     public String getCodigo() { return codigo; }
     public String getNombre() { return nombre; }
     public String getZona() { return zona; }
+    public String getDireccion() { return direccion; }
     public String getDescripcion() { return descripcion; }
+    public HorarioAtencion getHorario() { return horario; }
     public PoliticaPrecio getPoliticaPrecio() { return politicaPrecio; }
     public ConfiguracionAlertas getAlertas() { return alertas; }
 }

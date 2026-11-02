@@ -184,15 +184,9 @@ class PrecioHappyHour {
   +calcular(item: VentaPorReceta): double
 }
 
-class PrecioDemandaAlta {
-  -factorIncremento: double
-  +calcular(item: VentaPorReceta): double
-}
-
 Venta --> EstrategiaPrecio
 EstrategiaPrecio <|.. PrecioNormal
 EstrategiaPrecio <|.. PrecioHappyHour
-EstrategiaPrecio <|.. PrecioDemandaAlta
 @enduml
 
 

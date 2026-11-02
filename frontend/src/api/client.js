@@ -40,6 +40,20 @@ async function pedir(metodo, ruta, cuerpo, signal) {
 
 const bar = (id) => `/establecimientos/${id}`;
 
+/** {establecimientos: [a, b], turno: 'NOCHE'} → "?establecimientos=a,b&turno=NOCHE" (omite lo vacío). */
+function consulta(filtro = {}) {
+  const parametros = new URLSearchParams();
+  Object.entries(filtro).forEach(([clave, valor]) => {
+    if (Array.isArray(valor)) {
+      if (valor.length) parametros.set(clave, valor.join(','));
+    } else if (valor) {
+      parametros.set(clave, valor);
+    }
+  });
+  const texto = parametros.toString();
+  return texto ? `?${texto}` : '';
+}
+
 export const api = {
   async estado(signal) {
     const [aplicacion, salud] = await Promise.all([pedir('GET', '', undefined, signal), pedir('GET', '/health', undefined, signal)]);
@@ -84,6 +98,7 @@ export const api = {
     preparar: (id, comandaId) => pedir('POST', `${bar(id)}/comandas/${comandaId}/preparar`),
     despachar: (id, comandaId) => pedir('POST', `${bar(id)}/comandas/${comandaId}/despachar`),
     anular: (id, comandaId, motivo) => pedir('POST', `${bar(id)}/comandas/${comandaId}/anular`, { motivo }),
+    devolver: (id, comandaId, devolucion) => pedir('POST', `${bar(id)}/comandas/${comandaId}/devoluciones`, devolucion),
   },
 
   auditorias: {
@@ -91,8 +106,10 @@ export const api = {
     listar: (id) => pedir('GET', `${bar(id)}/auditorias`),
   },
 
-  reporte: (id, secciones = []) =>
-    pedir('GET', `${bar(id)}/reportes${secciones.length ? `?secciones=${secciones.join(',')}` : ''}`),
+  // Filtro: {establecimientos: [ids] (vacío = todos), desde, hasta, turno, secciones} o {establecimientos, jornada}.
+  reportes: {
+    generar: (filtro) => pedir('GET', `/reportes${consulta(filtro)}`),
+    diario: (filtro) => pedir('GET', `/reportes/diario${consulta(filtro)}`),
+  },
   notificaciones: (id, limite = 20) => pedir('GET', `${bar(id)}/notificaciones?limite=${limite}`),
-  traza: (id) => pedir('GET', `${bar(id)}/traza`),
 };

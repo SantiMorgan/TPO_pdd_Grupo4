@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { api } from '../api/client.js';
 import { ROLES } from '../routes/roles.js';
 import { useSesion } from '../session/Sesion.jsx';
 import EstadoConexion from './EstadoConexion.jsx';
-import { GuiaModal, PatronesModal } from './Patrones.jsx';
 import { Pill } from './ui.jsx';
 import { useDatos } from './useDatos.js';
 
@@ -11,7 +9,6 @@ import { useDatos } from './useDatos.js';
 export default function Shell({ vista, ir, children }) {
   const { sesion, establecimientos, establecimientoId, establecimiento, cambiarEstablecimiento, salir } = useSesion();
   const rol = ROLES[sesion.rol];
-  const [modal, setModal] = useState(null);
   const carta = useDatos(() => (establecimientoId ? api.carta(establecimientoId) : null), [establecimientoId], { intervalo: 5000 });
   const estrategia = carta.datos?.estrategia;
   const titulo = rol.vistas.find((v) => v.id === vista)?.titulo || '';
@@ -59,7 +56,6 @@ export default function Shell({ vista, ir, children }) {
         <div className="sidebar-footer">
           <EstadoConexion />
           <p className="tiny">UADE · Proceso de Desarrollo de Software</p>
-          <p className="tiny">Spring Boot · PostgreSQL · React</p>
         </div>
       </aside>
       <div className="app-main">
@@ -74,17 +70,13 @@ export default function Shell({ vista, ir, children }) {
           <div className="top-actions">
             {estrategia && (
               <span className="chip" title={estrategia.motivo}>
-                Precio vigente <Pill tono={estrategia.codigo === 'NORMAL' ? undefined : estrategia.codigo === 'HAPPY_HOUR' ? 'success' : 'warn'}>{estrategia.nombre}</Pill>
+                Precio vigente <Pill tono={estrategia.codigo === 'HAPPY_HOUR' ? 'success' : undefined}>{estrategia.nombre}</Pill>
               </span>
             )}
-            <button className="btn" type="button" onClick={() => setModal('patrones')}>◈ Patrones</button>
-            <button className="btn btn-ghost" type="button" onClick={() => setModal('guia')}>📋 Guía</button>
           </div>
         </header>
         <main id="contenido" aria-live="polite">{children}</main>
       </div>
-      <PatronesModal abierto={modal === 'patrones'} onCerrar={() => setModal(null)} />
-      <GuiaModal abierto={modal === 'guia'} onCerrar={() => setModal(null)} />
     </div>
   );
 }

@@ -7,10 +7,9 @@ import { useDatos } from '../../components/useDatos.js';
 import { useSesion } from '../../session/Sesion.jsx';
 
 const MODOS = [
-  ['AUTOMATICO', 'Automático', 'Happy Hour en su horario, demanda alta si se supera el umbral y, si no, precio normal.'],
+  ['AUTOMATICO', 'Automático', 'Happy Hour en su horario y, el resto del día, precio normal.'],
   ['NORMAL', 'Normal', 'Siempre el precio base.'],
-  ['HAPPY_HOUR', 'Happy Hour', 'Forzar el descuento ahora.'],
-  ['DEMANDA_ALTA', 'Demanda alta', 'Forzar el recargo ahora.'],
+  ['HAPPY_HOUR', 'Happy Hour', 'Aplicar el descuento ahora, sin importar la hora.'],
 ];
 
 function FormularioPolitica({ politica, onGuardar, ocupado }) {
@@ -28,8 +27,6 @@ function FormularioPolitica({ politica, onGuardar, ocupado }) {
       inicioHappyHour: datos.inicioHappyHour,
       finHappyHour: datos.finHappyHour,
       descuentoHappyHour: Number(datos.descuentoHappyHour),
-      incrementoDemandaAlta: Number(datos.incrementoDemandaAlta),
-      umbralDemandaAlta: Number(datos.umbralDemandaAlta),
       margenMinimo: Number(datos.margenMinimo),
       horaSimulada: datos.horaSimulada || null,
     });
@@ -47,7 +44,7 @@ function FormularioPolitica({ politica, onGuardar, ocupado }) {
         <small>{MODOS.find(([c]) => c === datos.modo)[2]}</small>
       </div>
       <div className="divider" />
-      <div className="small strong mb8">PrecioHappyHour</div>
+      <div className="small strong mb8">Happy Hour</div>
       <div className="fieldrow3">
         <div className="field"><label htmlFor="hhInicio">Desde</label><input id="hhInicio" type="time" required value={datos.inicioHappyHour} onChange={cambiar('inicioHappyHour')} /></div>
         <div className="field"><label htmlFor="hhFin">Hasta</label><input id="hhFin" type="time" required value={datos.finHappyHour} onChange={cambiar('finHappyHour')} /></div>
@@ -56,13 +53,7 @@ function FormularioPolitica({ politica, onGuardar, ocupado }) {
       <div className="field mt12">
         <label htmlFor="margen">Margen mínimo sobre el costo %</label>
         <input id="margen" type="number" min="0" max="1000" step="0.01" required value={datos.margenMinimo} onChange={cambiar('margenMinimo')} />
-        <small>Con Happy Hour el precio nunca baja de costo × (1 + margen).</small>
-      </div>
-      <div className="divider" />
-      <div className="small strong mb8">PrecioDemandaAlta</div>
-      <div className="fieldrow">
-        <div className="field"><label htmlFor="daInc">Recargo %</label><input id="daInc" type="number" min="0" max="100" step="0.01" required value={datos.incrementoDemandaAlta} onChange={cambiar('incrementoDemandaAlta')} /></div>
-        <div className="field"><label htmlFor="daUmbral">Desde cuántas comandas en curso</label><input id="daUmbral" type="number" min="1" max="99" step="1" required value={datos.umbralDemandaAlta} onChange={cambiar('umbralDemandaAlta')} /></div>
+        <small>Con Happy Hour un trago nunca queda por debajo de su costo más este margen.</small>
       </div>
       <div className="divider" />
       <div className="field">
@@ -99,15 +90,14 @@ export default function PreciosView() {
   return (
     <>
       <Encabezado titulo="Política de precios"
-                  descripcion="Strategy: las tres estrategias son intercambiables en tiempo de ejecución. El precio de cada comanda se fija al registrarla y no se recalcula después." />
+                  descripcion="Elegí cómo se calculan los precios del menú. El precio de cada pedido queda fijo cuando se registra y no cambia después." />
       <div className="cols-2" style={{ gridTemplateColumns: '1fr 1.1fr' }}>
         <div>
-          <Tarjeta titulo="Estrategia vigente" subtitulo="La que se aplica a los pedidos que entren ahora">
+          <Tarjeta titulo="Precio vigente" subtitulo="El que se aplica a los pedidos que entren ahora">
             {vigente ? (
               <>
                 <div className="flex gap12 wrap">
                   <span className="price">{vigente.nombre}</span>
-                  <span className="tag mono">{vigente.clase}</span>
                 </div>
                 <div className="record-sub mt8">{vigente.motivo} · {horaCorta(vigente.hora)}{vigente.horaSimulada ? ' (hora simulada)' : ''}</div>
               </>
@@ -117,7 +107,7 @@ export default function PreciosView() {
             <FormularioPolitica key={`${establecimientoId}-${version}`} politica={establecimiento.politicaPrecio} onGuardar={guardar} ocupado={ocupado} />
           </Tarjeta>
         </div>
-        <Tarjeta titulo="Comparación de estrategias" subtitulo="El mismo menú calculado por cada clase concreta">
+        <Tarjeta titulo="Comparación de precios" subtitulo="Cómo queda el menú con y sin Happy Hour">
           <Cargando estado={comparacion}>
             {(datos) => (
               <div className="table-wrap">
@@ -145,7 +135,7 @@ export default function PreciosView() {
               </div>
             )}
           </Cargando>
-          <div className="note info mt16">La columna resaltada es la estrategia que hoy usa {establecimiento.nombre}. <Pill>{establecimiento.politicaPrecio.modo}</Pill></div>
+          <div className="note info mt16">La columna resaltada es el precio que hoy usa {establecimiento.nombre}. <Pill>{MODOS.find(([c]) => c === establecimiento.politicaPrecio.modo)?.[1]}</Pill></div>
         </Tarjeta>
       </div>
     </>

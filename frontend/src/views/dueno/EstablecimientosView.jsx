@@ -1,31 +1,64 @@
 import { useState } from 'react';
 import { api } from '../../api/client.js';
 import { useAccion } from '../../components/Avisos.jsx';
+import { horario as horarioTurno, horaCorta } from '../../components/formato.js';
 import { Encabezado, Modal, Pill, Tarjeta } from '../../components/ui.jsx';
 import { useSesion } from '../../session/Sesion.jsx';
 
-const CANALES = [['PANEL', '🖥 Panel de la aplicación'], ['EMAIL', '✉ Email (simulado)'], ['SMS', '💬 SMS (simulado)'], ['WHATSAPP', '🟢 WhatsApp (simulado)']];
+const CANALES = [['PANEL', '🖥 Panel de la aplicación'], ['EMAIL', '✉ Email (de prueba)'], ['SMS', '💬 SMS (de prueba)'], ['WHATSAPP', '🟢 WhatsApp (de prueba)']];
+
+// Horarios comunes de ejemplo para un bar nuevo.
+const HORARIO_COMUN = { mediodiaApertura: '12:00', mediodiaCierre: '16:00', nocheApertura: '20:00', nocheCierre: '02:00' };
 
 function DatosModal({ abierto, establecimiento, onCerrar, onGuardar, ocupado }) {
   const nuevo = !establecimiento;
+  const horario = establecimiento?.horario;
   const [datos, setDatos] = useState(() => ({
-    codigo: '', nombre: establecimiento?.nombre ?? '', zona: establecimiento?.zona ?? '', descripcion: establecimiento?.descripcion ?? 'Bar de coctelería',
+    codigo: '', nombre: establecimiento?.nombre ?? '', zona: establecimiento?.zona ?? '',
+    direccion: establecimiento?.direccion ?? '', descripcion: establecimiento?.descripcion ?? 'Bar de coctelería',
+    mediodiaApertura: horaCorta(horario?.mediodiaApertura) || HORARIO_COMUN.mediodiaApertura,
+    mediodiaCierre: horaCorta(horario?.mediodiaCierre) || HORARIO_COMUN.mediodiaCierre,
+    nocheApertura: horaCorta(horario?.nocheApertura) || HORARIO_COMUN.nocheApertura,
+    nocheCierre: horaCorta(horario?.nocheCierre) || HORARIO_COMUN.nocheCierre,
   }));
   const cambiar = (campo) => (e) => setDatos((d) => ({ ...d, [campo]: e.target.value }));
+  const enviar = () => onGuardar({
+    codigo: datos.codigo, nombre: datos.nombre, zona: datos.zona, direccion: datos.direccion, descripcion: datos.descripcion,
+    horario: {
+      mediodiaApertura: datos.mediodiaApertura, mediodiaCierre: datos.mediodiaCierre,
+      nocheApertura: datos.nocheApertura, nocheCierre: datos.nocheCierre,
+    },
+  });
   return (
     <Modal abierto={abierto} titulo={nuevo ? 'Agregar establecimiento' : 'Editar establecimiento'} onCerrar={onCerrar}
-           ocupado={ocupado} onEnviar={() => onGuardar(datos)}>
+           ocupado={ocupado} onEnviar={enviar}>
       <div className="fieldrow">
         {nuevo && <div className="field"><label htmlFor="ecodigo">Código</label>
           <input id="ecodigo" required maxLength={30} value={datos.codigo} onChange={cambiar('codigo')} placeholder="Ej.: CENTRO" /></div>}
         <div className="field"><label htmlFor="enombre">Nombre</label>
           <input id="enombre" required maxLength={80} value={datos.nombre} onChange={cambiar('nombre')} /></div>
-        <div className="field"><label htmlFor="ezona">Barrio / ubicación</label>
-          <input id="ezona" required maxLength={80} value={datos.zona} onChange={cambiar('zona')} /></div>
+        <div className="field"><label htmlFor="edireccion">Dirección</label>
+          <input id="edireccion" required maxLength={120} value={datos.direccion} onChange={cambiar('direccion')} placeholder="Ej.: Av. Corrientes 1234" /></div>
+        <div className="field"><label htmlFor="ezona">Barrio / ciudad</label>
+          <input id="ezona" required maxLength={80} value={datos.zona} onChange={cambiar('zona')} placeholder="Ej.: San Nicolás · CABA" /></div>
         <div className="field"><label htmlFor="edesc">Descripción</label>
           <input id="edesc" maxLength={150} value={datos.descripcion} onChange={cambiar('descripcion')} /></div>
       </div>
-      {nuevo && <p className="muted small mt12">El bar nuevo empieza vacío: el encargado carga sus insumos y vos su menú.</p>}
+      <div className="small strong mt16 mb8">Horarios de atención</div>
+      <div className="fieldrow">
+        <div className="field"><label htmlFor="mApertura">Mediodía: abre</label>
+          <input id="mApertura" type="time" required value={datos.mediodiaApertura} onChange={cambiar('mediodiaApertura')} /></div>
+        <div className="field"><label htmlFor="mCierre">Mediodía: cierra</label>
+          <input id="mCierre" type="time" required value={datos.mediodiaCierre} onChange={cambiar('mediodiaCierre')} /></div>
+        <div className="field"><label htmlFor="nApertura">Noche: abre</label>
+          <input id="nApertura" type="time" required value={datos.nocheApertura} onChange={cambiar('nocheApertura')} /></div>
+        <div className="field"><label htmlFor="nCierre">Noche: cierra</label>
+          <input id="nCierre" type="time" required value={datos.nocheCierre} onChange={cambiar('nocheCierre')} /></div>
+      </div>
+      <p className="muted small mt12">
+        La noche puede cerrar después de medianoche (hasta las 5:59): esas ventas cuentan para la jornada en que abrió. Los reportes usan estos horarios para separar los turnos.
+      </p>
+      {nuevo && <p className="muted small">El bar nuevo empieza vacío: cargá sus insumos y su menú desde Menú e insumos.</p>}
     </Modal>
   );
 }
@@ -91,22 +124,25 @@ export default function EstablecimientosView() {
             <div className="brand-icon" style={{ width: 53, height: 53, flexShrink: 0 }}>🍸</div>
             <div>
               <h2>{establecimiento.nombre}</h2>
-              <p className="muted small">{establecimiento.codigo} · {establecimiento.zona} · {establecimiento.descripcion}</p>
-              <button className="btn btn-small" type="button" onClick={() => setModal('editar')}>Editar datos</button>
+              <p className="muted small mb0">{establecimiento.direccion || 'Sin dirección cargada'} · {establecimiento.zona}</p>
+              <p className="muted small">{establecimiento.codigo} · {establecimiento.descripcion}</p>
+              <p className="small">
+                🕛 Mediodía {horarioTurno('MEDIODIA', establecimiento.horario)} · 🌙 Noche {horarioTurno('NOCHE', establecimiento.horario)}
+              </p>
+              <button className="btn btn-small" type="button" onClick={() => setModal('editar')}>Editar datos y horarios</button>
             </div>
           </div>
           <div className="divider" />
           <div className="small strong mb8">Tus bares</div>
           {establecimientos.map((b) => (
             <div className="record" key={b.id}>
-              <div><div className="record-label">{b.nombre}</div><div className="record-sub">{b.zona} · precios {b.politicaPrecio.modo.toLowerCase()}</div></div>
+              <div><div className="record-label">{b.nombre}</div><div className="record-sub">{b.direccion ? `${b.direccion} · ` : ''}{b.zona}</div></div>
               <button className={`btn btn-small${b.id === establecimientoId ? ' btn-green' : ''}`} type="button"
                       onClick={() => cambiarEstablecimiento(b.id)}>{b.id === establecimientoId ? 'Activo' : 'Cambiar'}</button>
             </div>
           ))}
-          <div className="note info mt16">La separación es por establecimiento dentro de la aplicación; no hay usuarios ni permisos por bar todavía.</div>
         </Tarjeta>
-        <Tarjeta titulo="Canales de alerta" subtitulo="Qué notificaciones crea NotificacionFactory cuando un insumo llega al punto de reposición">
+        <Tarjeta titulo="Canales de alerta" subtitulo="Por dónde avisamos cuando un insumo llega a su punto de reposición">
           <FormularioAlertas key={establecimientoId} establecimiento={establecimiento} onGuardar={guardarAlertas} ocupado={ocupado} />
         </Tarjeta>
       </div>

@@ -64,7 +64,7 @@ export default function Ingreso() {
           </div>
         </div>
         <div className="flex between wrap gap12 mt16">
-          <span className="tiny muted">La separación por rol es de interfaz; el inicio de sesión real queda como trabajo futuro.</span>
+          <span className="tiny muted">Podés abrir otra pestaña para entrar con otro rol al mismo tiempo.</span>
           <button className="btn btn-primary" type="submit" disabled={!bar}>Ingresar como {ROLES[rol].nombre} →</button>
         </div>
       </form>

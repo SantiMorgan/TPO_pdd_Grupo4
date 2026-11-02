@@ -2,6 +2,7 @@ package ar.edu.uade.barstock.controller;
 
 import ar.edu.uade.barstock.controller.dto.AnularComandaRequest;
 import ar.edu.uade.barstock.controller.dto.ComandaResponse;
+import ar.edu.uade.barstock.controller.dto.DevolucionRequest;
 import ar.edu.uade.barstock.controller.dto.RegistrarComandaRequest;
 import ar.edu.uade.barstock.facade.BarStockFacade;
 import jakarta.validation.Valid;
@@ -63,5 +64,13 @@ public class ComandaController {
     public ComandaResponse anular(@PathVariable UUID establecimientoId, @PathVariable UUID id,
                                   @Valid @RequestBody AnularComandaRequest request) {
         return ComandaResponse.desde(facade.anularComanda(establecimientoId, id, request.motivo()));
+    }
+
+    /** Devolución de algunas unidades de un trago despachado, sin anular el resto de la comanda. */
+    @PostMapping("/{id}/devoluciones")
+    public ComandaResponse devolver(@PathVariable UUID establecimientoId, @PathVariable UUID id,
+                                    @Valid @RequestBody DevolucionRequest request) {
+        return ComandaResponse.desde(facade.devolverTrago(establecimientoId, id, request.itemId(), request.cantidad(),
+                request.motivo()));
     }
 }

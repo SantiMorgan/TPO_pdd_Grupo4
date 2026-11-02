@@ -124,6 +124,18 @@ class InsumoTest {
         assertThat(insumo.getStockActual()).isEqualByComparingTo("750");
     }
 
+    @Test
+    void elRecuentoEnEnvasesCompletosMasElRestoSeConvierteAMililitros() {
+        Insumo insumo = crear("GIN", "Gin", "900", "1", "100");
+        assertThat(insumo.cantidadContada(2, new BigDecimal("300"))).isEqualByComparingTo("1800");
+        assertThat(insumo.cantidadContada(0, new BigDecimal("750"))).isEqualByComparingTo("750");
+        assertThatThrownBy(() -> insumo.cantidadContada(1, new BigDecimal("751")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("no puede superar 750 ml");
+        assertThatThrownBy(() -> new RecuentoInsumo(-1, BigDecimal.ZERO, null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     private Insumo crear(String codigo, String nombre, String stock, String costo, String punto) {
         return new Insumo(EST, codigo, nombre, UnidadMedida.ML,
                 new BigDecimal(stock), new BigDecimal(costo), new BigDecimal(punto), 750);

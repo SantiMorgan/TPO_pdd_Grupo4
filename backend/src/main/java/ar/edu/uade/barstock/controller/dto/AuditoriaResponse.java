@@ -13,11 +13,12 @@ public record AuditoriaResponse(UUID id, int numero, String responsable, Instant
         return new AuditoriaResponse(auditoria.getId(), auditoria.getNumero(), auditoria.getResponsable(),
                 auditoria.getFecha(), auditoria.getMermaTotal(), auditoria.diferenciasDetectadas(),
                 auditoria.getDetalles().stream().map(d -> new Detalle(d.getInsumoId(), d.getNombreInsumo(),
-                        d.getUnidadMedida(), d.getStockTeorico(), d.getStockFisico(), d.getDiferencia(),
-                        d.getCostoMerma())).toList());
+                        d.getUnidadMedida(), d.getContenidoEnvase(), d.getStockTeorico(), d.getStockFisico(),
+                        d.getDiferencia(), d.getCostoMerma(), d.getComentario())).toList());
     }
 
-    public record Detalle(UUID insumoId, String insumo, UnidadMedida unidadMedida, BigDecimal stockTeorico,
-                          BigDecimal stockFisico, BigDecimal diferencia, BigDecimal costoMerma) {
+    public record Detalle(UUID insumoId, String insumo, UnidadMedida unidadMedida, int contenidoEnvase,
+                          BigDecimal stockTeorico, BigDecimal stockFisico, BigDecimal diferencia,
+                          BigDecimal costoMerma, String comentario) {
     }
 }

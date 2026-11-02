@@ -7,7 +7,7 @@ export default function EstadoConexion() {
   return (
     <p role="status" aria-live="polite">
       <span className="status-dot" style={conectado ? undefined : { background: '#e0716f' }} />
-      {estado.cargando && !estado.datos ? 'Comprobando conexión…' : conectado ? `API y base de datos ${estado.datos.salud}` : 'Sin conexión con la API'}
+      {estado.cargando && !estado.datos ? 'Comprobando conexión…' : conectado ? 'Conectado' : 'Sin conexión con el servidor'}
     </p>
   );
 }

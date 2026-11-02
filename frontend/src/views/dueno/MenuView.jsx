@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { api } from '../../api/client.js';
 import { useAccion } from '../../components/Avisos.jsx';
-import { ingredientesTexto, pesos, unidad } from '../../components/formato.js';
+import { cantidad, ingredientesTexto, pesos, unidad } from '../../components/formato.js';
+import { InsumoModal } from '../../components/insumos.jsx';
+import { TablaStock } from '../../components/inventario.jsx';
 import { Cargando, Encabezado, Modal, Pill, Tarjeta, Vacio } from '../../components/ui.jsx';
 import { useDatos } from '../../components/useDatos.js';
+import { puede } from '../../routes/roles.js';
 import { useSesion } from '../../session/Sesion.jsx';
 
 const ICONOS = ['🍹', '🍸', '🥃', '🍷', '🥤', '🍺', '🍾', '🍋'];
@@ -60,17 +63,32 @@ function RecetaModal({ abierto, receta, insumos, onCerrar, onGuardar, ocupado })
           </div>
         );
       })}
-      <div className="note info mt12">El costo teórico lo calcula la receta con el costo actual de cada insumo (Experto en información).</div>
+      <div className="note info mt12">El costo del trago se calcula con el costo actual de cada insumo.</div>
     </Modal>
   );
 }
 
 export default function MenuView() {
-  const { establecimientoId, establecimiento } = useSesion();
+  const { establecimientoId, establecimiento, sesion } = useSesion();
   const recetas = useDatos(() => api.recetas.listar(establecimientoId, true), [establecimientoId]);
   const insumos = useDatos(() => api.insumos.listar(establecimientoId), [establecimientoId]);
   const [editando, setEditando] = useState(null);
+  const [insumoEditado, setInsumoEditado] = useState(null);
   const [ejecutar, ocupado] = useAccion();
+  const creaInsumos = puede(sesion.rol, 'CREAR_INSUMOS');
+
+  const guardarInsumo = async (datos) => {
+    const nuevo = insumoEditado === 'nuevo';
+    const ok = await ejecutar(() => (nuevo
+      ? api.insumos.crear(establecimientoId, datos)
+      : api.insumos.editar(establecimientoId, insumoEditado.id, datos)),
+    (i) => (nuevo ? `${i.nombre} agregado con ${cantidad(i.stockActual, i.unidadMedida)} de stock inicial` : 'Insumo guardado'));
+    if (ok) {
+      setInsumoEditado(null);
+      insumos.recargar();
+      recetas.recargar();
+    }
+  };
 
   const guardar = async (datos) => {
     const nueva = editando === 'nueva';
@@ -91,10 +109,13 @@ export default function MenuView() {
 
   return (
     <>
-      <Encabezado titulo="Menú y recetas"
-                  descripcion={`Los tragos de ${establecimiento.nombre} se arman con los insumos del bar. Cada receta define los mililitros que se descuentan al despachar.`}
-                  extra={<button className="btn btn-primary" type="button" disabled={!insumos.datos?.length} onClick={() => setEditando('nueva')}>+ Nueva receta</button>} />
-      <Tarjeta titulo="Recetas" subtitulo="Quitar del menú es una baja lógica: las comandas anteriores conservan su detalle."
+      <Encabezado titulo="Menú e insumos"
+                  descripcion={`Los tragos de ${establecimiento.nombre} se arman con los insumos del bar. Cada receta define los mililitros que se descuentan al despachar. Los insumos nuevos y su stock inicial se cargan acá.`}
+                  extra={<div className="flex gap8 wrap">
+                    {creaInsumos && <button className="btn" type="button" onClick={() => setInsumoEditado('nuevo')}>+ Nuevo insumo</button>}
+                    <button className="btn btn-primary" type="button" disabled={!insumos.datos?.length} onClick={() => setEditando('nueva')}>+ Nueva receta</button>
+                  </div>} />
+      <Tarjeta titulo="Recetas" subtitulo="Un trago que sale del menú no se borra: los pedidos anteriores conservan su detalle."
                extra={<Pill>{recetas.datos?.length ?? 0} recetas</Pill>}>
         <Cargando estado={recetas}>
           {(lista) => (lista.length ? lista.map((r) => {
@@ -117,13 +138,28 @@ export default function MenuView() {
                 </div>
               </div>
             );
-          }) : <Vacio simbolo="🍹">Todavía no hay recetas. {insumos.datos?.length ? '' : 'Primero el encargado tiene que cargar insumos.'}</Vacio>)}
+          }) : <Vacio simbolo="🍹">Todavía no hay recetas. {insumos.datos?.length ? '' : 'Primero cargá los insumos del bar.'}</Vacio>)}
+        </Cargando>
+      </Tarjeta>
+      <Tarjeta titulo="Insumos del bar" subtitulo="Alta de insumos nuevos con su stock inicial. Las compras y los recuentos los registra el encargado."
+               className="mt16" extra={<Pill>{insumos.datos?.length ?? 0} insumos</Pill>}>
+        <Cargando estado={insumos}>
+          {(lista) => (
+            <TablaStock insumos={lista} acciones={(i) => (
+              <button className="btn btn-small btn-ghost" type="button" onClick={() => setInsumoEditado(i)}>Editar</button>
+            )} />
+          )}
         </Cargando>
       </Tarjeta>
       {insumos.datos && (
         <RecetaModal key={editando === 'nueva' ? 'nueva' : editando?.id || 'cerrado'} abierto={Boolean(editando)}
                      receta={editando === 'nueva' ? null : editando} insumos={insumos.datos} ocupado={ocupado}
                      onCerrar={() => setEditando(null)} onGuardar={guardar} />
+      )}
+      {insumoEditado && (
+        <InsumoModal key={insumoEditado === 'nuevo' ? 'nuevo' : insumoEditado.id} abierto
+                     insumo={insumoEditado === 'nuevo' ? null : insumoEditado} ocupado={ocupado}
+                     onCerrar={() => setInsumoEditado(null)} onGuardar={guardarInsumo} />
       )}
     </>
   );

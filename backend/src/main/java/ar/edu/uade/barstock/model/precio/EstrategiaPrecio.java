@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 
 /** Strategy: cada política de precios encapsula su algoritmo y es intercambiable en ejecución. */
 public interface EstrategiaPrecio {
-    /** Identificador estable para la API: NORMAL, HAPPY_HOUR o DEMANDA_ALTA. */
+    /** Identificador estable para la API: NORMAL o HAPPY_HOUR. */
     String codigo();
 
     /** Texto para mostrar, con sus parámetros (por ejemplo, "Happy Hour −20 %"). */

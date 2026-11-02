@@ -6,6 +6,15 @@ import { useDatos } from '../../components/useDatos.js';
 import { useSesion } from '../../session/Sesion.jsx';
 
 const ICONOS = { PANEL: '🖥', EMAIL: '✉', SMS: '💬', WHATSAPP: '🟢' };
+const RESULTADOS = { MOSTRADA: ['En el panel', 'success'], SIMULADA: ['Envío de prueba', 'info'], FALLIDA: ['No se pudo enviar', 'danger'] };
+
+const COMO_FUNCIONA = [
+  'Cada insumo tiene un punto de reposición, por ejemplo 250 ml de Campari. Cuando el stock llega a ese número o baja de él, recibís una alerta.',
+  'El stock baja cuando el bartender despacha un trago y cambia cuando se registra un recuento. Las compras lo suben.',
+  'El aviso llega una sola vez, en el momento en que el insumo cruza el punto de reposición: no se repite con cada trago. Si después se repone y vuelve a bajar, avisa de nuevo.',
+  'Llega por cada medio que eligió el dueño en Establecimientos: este panel, email, SMS o WhatsApp. Por ahora el email, el SMS y el WhatsApp son de prueba: quedan anotados acá pero no salen de verdad.',
+  'Si un aviso no se puede enviar, el trago igual queda despachado y el stock descontado.',
+];
 
 export default function AlertasView() {
   const { establecimientoId, establecimiento } = useSesion();
@@ -16,25 +25,28 @@ export default function AlertasView() {
   return (
     <>
       <Encabezado titulo="Alertas de reposición"
-                  descripcion="Cuando un insumo cruza su punto de reposición, AlertaStock (Observer) pide a NotificacionFactory un canal por cada medio configurado." />
+                  descripcion="Te avisamos cuando un insumo se está por terminar, para que lo compres a tiempo." />
       <div className="cols-2">
-        <Tarjeta titulo="Avisos emitidos" subtitulo="Un registro por canal; email, SMS y WhatsApp están simulados"
+        <Tarjeta titulo="Avisos emitidos" subtitulo="Un registro por cada medio de aviso"
                  extra={<Pill tono={avisos.datos?.length ? 'warn' : undefined}>{avisos.datos?.length ?? 0}</Pill>}>
           <Cargando estado={avisos}>
             {(lista) => (lista.length ? (
               <div className="table-wrap">
                 <table>
-                  <thead><tr><th>Fecha</th><th>Canal</th><th>Destinatario</th><th>Mensaje</th><th>Resultado</th></tr></thead>
+                  <thead><tr><th>Fecha</th><th>Medio</th><th>Destinatario</th><th>Mensaje</th><th>Resultado</th></tr></thead>
                   <tbody>
-                    {lista.map((n) => (
-                      <tr key={n.id}>
-                        <td>{fechaHora(n.fecha)}</td>
-                        <td>{ICONOS[n.canal]} {n.canal}</td>
-                        <td>{n.destinatario}</td>
-                        <td style={{ whiteSpace: 'normal', minWidth: 220 }}>{n.mensaje}</td>
-                        <td><Pill tono={n.resultado === 'FALLIDA' ? 'danger' : n.resultado === 'SIMULADA' ? 'info' : 'success'}>{n.resultado}</Pill></td>
-                      </tr>
-                    ))}
+                    {lista.map((n) => {
+                      const [texto, tono] = RESULTADOS[n.resultado] || [n.resultado];
+                      return (
+                        <tr key={n.id}>
+                          <td>{fechaHora(n.fecha)}</td>
+                          <td>{ICONOS[n.canal]} {n.canal}</td>
+                          <td>{n.destinatario}</td>
+                          <td style={{ whiteSpace: 'normal', minWidth: 220 }}>{n.mensaje}</td>
+                          <td><Pill tono={tono}>{texto}</Pill></td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -42,7 +54,7 @@ export default function AlertasView() {
           </Cargando>
         </Tarjeta>
         <div>
-          <Tarjeta titulo="Canales configurados" subtitulo="Los define el dueño en Establecimientos">
+          <Tarjeta titulo="Por dónde te avisamos" subtitulo="Lo elige el dueño en Establecimientos">
             {canales.map((c) => (
               <div className="record" key={c}>
                 <div className="record-label">{ICONOS[c]} {c}</div>
@@ -53,11 +65,9 @@ export default function AlertasView() {
           <Tarjeta titulo="Insumos a reponer ahora">
             <Cargando estado={insumos}>{(lista) => <AlertasActivas insumos={lista} />}</Cargando>
           </Tarjeta>
-          <Tarjeta titulo="Cómo funciona">
+          <Tarjeta titulo="Cómo funciona" subtitulo="Qué alertas recibís y cuándo">
             <ul className="small-list">
-              <li><span>1</span>Cada despacho, compra o ajuste confirma su transacción y recién después el Inventario avisa a sus observadores.</li>
-              <li><span>2</span>AlertaStock solo actúa cuando el stock cruza hacia abajo el punto de reposición: no repite el aviso con cada trago.</li>
-              <li><span>3</span>NotificacionFactory crea el canal concreto; si uno falla, el descuento ya confirmado no se deshace.</li>
+              {COMO_FUNCIONA.map((texto, i) => <li key={i}><span>{i + 1}</span>{texto}</li>)}
             </ul>
           </Tarjeta>
         </div>

@@ -10,14 +10,14 @@ export default function StockView({ ir }) {
   const insumos = useDatos(() => api.insumos.listar(establecimientoId), [establecimientoId], { intervalo: 5000 });
   return (
     <>
-      <Encabezado titulo="Stock disponible" descripcion="Existencias en mililitros o unidades, actualizadas con cada despacho."
+      <Encabezado titulo="Stock disponible" descripcion="Existencias en mililitros y en botellas, actualizadas con cada trago despachado."
                   extra={<button className="btn" type="button" onClick={() => ir('cierre')}>◈ Ir al cierre de turno</button>} />
       <Cargando estado={insumos}>
         {(lista) => (
           <>
             <KpisStock insumos={lista} />
             <div className="cols-2">
-              <Tarjeta titulo="Insumos" subtitulo="Stock fraccionado por receta" extra={<Pill tono="info">Solo lectura</Pill>}>
+              <Tarjeta titulo="Insumos" subtitulo="Cada trago descuenta los mililitros de su receta" extra={<Pill tono="info">Solo lectura</Pill>}>
                 <TablaStock insumos={lista} />
               </Tarjeta>
               <Tarjeta titulo="Para avisar al encargado" subtitulo="Insumos en o por debajo de su punto de reposición">

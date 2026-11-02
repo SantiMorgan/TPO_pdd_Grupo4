@@ -143,16 +143,19 @@ class InventarioTest {
     }
 
     @Test
-    void elRecuentoAjustaAlValorFisicoYSoloRegistraLasDiferencias() {
-        Map<UUID, BigDecimal> recuento = new LinkedHashMap<>();
-        recuento.put(gin.getId(), new BigDecimal("880"));
-        recuento.put(tonica.getId(), new BigDecimal("3000"));
+    void elRecuentoPorEnvasesAjustaAlValorFisicoYSoloRegistraLasDiferencias() {
+        Map<UUID, RecuentoInsumo> recuento = new LinkedHashMap<>();
+        recuento.put(gin.getId(), new RecuentoInsumo(1, new BigDecimal("130"), "Dos tragos de cortesía (bartender: Juan)"));
+        recuento.put(tonica.getId(), new RecuentoInsumo(4, BigDecimal.ZERO, null));
 
         List<AjusteStock> ajustes = inventario.ajustarARecuento(Ejemplos.BAR, recuento, "Recuento #1");
 
         assertThat(ajustes).hasSize(2);
-        assertThat(ajustes).filteredOn(a -> a.insumoId().equals(gin.getId())).singleElement()
-                .satisfies(a -> assertThat(a.diferencia()).isEqualByComparingTo("-20"));
+        assertThat(ajustes).filteredOn(a -> a.insumoId().equals(gin.getId())).singleElement().satisfies(a -> {
+            assertThat(a.diferencia()).isEqualByComparingTo("-20"); // 750 + 130 contra 900
+            assertThat(a.comentario()).isEqualTo("Dos tragos de cortesía (bartender: Juan)");
+            assertThat(a.contenidoEnvase()).isEqualTo(750);
+        });
         assertThat(gin.getStockActual()).isEqualByComparingTo("880");
         verify(movimientos, times(1)).save(any());
         assertThat(recibidos).hasSize(1);
