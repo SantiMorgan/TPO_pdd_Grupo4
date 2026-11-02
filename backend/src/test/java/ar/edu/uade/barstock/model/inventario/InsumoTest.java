@@ -1,6 +1,7 @@
 package ar.edu.uade.barstock.model.inventario;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -13,10 +14,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class InsumoTest {
+    private static final UUID EST = UUID.randomUUID();
+
     @Test
     void creaConCantidadesEnterasYConservaDecimalesSoloEnElCosto() {
-        Insumo insumo = new Insumo(" gin-01 ", " Gin ", UnidadMedida.ML,
-                new BigDecimal("750"), new BigDecimal("0.10"), new BigDecimal("100"));
+        Insumo insumo = new Insumo(EST, " gin-01 ", " Gin ", UnidadMedida.ML,
+                new BigDecimal("750"), new BigDecimal("0.10"), new BigDecimal("100"), 750);
 
         assertThat(insumo.getId()).isNotNull();
         assertThat(insumo.getCodigo()).isEqualTo("GIN-01");
@@ -41,7 +44,7 @@ class InsumoTest {
     @ParameterizedTest
     @MethodSource("numerosInvalidos")
     void rechazaNegativosExcesoDePrecisionYNulos(BigDecimal stock, BigDecimal costo, BigDecimal punto) {
-        assertThatThrownBy(() -> new Insumo("GIN", "Gin", UnidadMedida.ML, stock, costo, punto))
+        assertThatThrownBy(() -> new Insumo(EST, "GIN", "Gin", UnidadMedida.ML, stock, costo, punto, 1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -70,8 +73,8 @@ class InsumoTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> crear("GIN", "N".repeat(151), "1", "1", "0"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new Insumo("GIN", "Gin", null,
-                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO))
+        assertThatThrownBy(() -> new Insumo(EST, "GIN", "Gin", null,
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -122,7 +125,7 @@ class InsumoTest {
     }
 
     private Insumo crear(String codigo, String nombre, String stock, String costo, String punto) {
-        return new Insumo(codigo, nombre, UnidadMedida.ML,
-                new BigDecimal(stock), new BigDecimal(costo), new BigDecimal(punto));
+        return new Insumo(EST, codigo, nombre, UnidadMedida.ML,
+                new BigDecimal(stock), new BigDecimal(costo), new BigDecimal(punto), 750);
     }
 }

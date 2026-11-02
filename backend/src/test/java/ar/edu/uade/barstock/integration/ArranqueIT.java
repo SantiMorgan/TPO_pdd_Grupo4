@@ -26,7 +26,7 @@ class ArranqueIT {
 
     @Test
     void arrancaConPostgresMigraElEsquemaYExponeLaApi() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("3");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("6");
         assertThat(jdbc.queryForObject(
                 "SELECT count(*) FROM information_schema.schemata WHERE schema_name = 'barstock'",
                 Integer.class)).isEqualTo(1);

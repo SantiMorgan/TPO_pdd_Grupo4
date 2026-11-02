@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api")
 public class EstadoController {
+    static final String HITO = "Actividad 3";
+
     private final BarStockFacade facade;
 
     public EstadoController(BarStockFacade facade) {
@@ -17,6 +19,6 @@ public class EstadoController {
 
     @GetMapping({"", "/"})
     public EstadoResponse estado() {
-        return new EstadoResponse(facade.obtenerNombreAplicacion(), "Hito 0");
+        return new EstadoResponse(facade.obtenerNombreAplicacion(), HITO);
     }
 }
