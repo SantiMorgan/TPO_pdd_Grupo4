@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/insumos")
+@RequestMapping("/api/establecimientos/{establecimientoId}/insumos")
 public class InventarioController {
     private final BarStockFacade facade;
 
@@ -30,42 +30,46 @@ public class InventarioController {
     }
 
     @PostMapping
-    public ResponseEntity<InsumoResponse> crear(@Valid @RequestBody CrearInsumoRequest request) {
-        var insumo = facade.crearInsumo(request.codigo(), request.nombre(), request.unidadMedida(),
-                request.stockInicial(), request.costoUnitario(), request.puntoReorden());
-        return ResponseEntity.created(URI.create("/api/insumos/" + insumo.getId()))
+    public ResponseEntity<InsumoResponse> crear(@PathVariable UUID establecimientoId,
+                                                @Valid @RequestBody CrearInsumoRequest request) {
+        var insumo = facade.crearInsumo(establecimientoId, request.codigo(), request.nombre(), request.unidadMedida(),
+                request.stockInicial(), request.costoUnitario(), request.puntoReorden(),
+                request.contenidoEnvaseOPorDefecto());
+        return ResponseEntity.created(URI.create("/api/establecimientos/" + establecimientoId + "/insumos/" + insumo.getId()))
                 .body(InsumoResponse.desde(insumo));
     }
 
     @GetMapping
-    public List<InsumoResponse> listar(@RequestParam(defaultValue = "true") boolean activo) {
-        return facade.listarInsumos(activo).stream().map(InsumoResponse::desde).toList();
+    public List<InsumoResponse> listar(@PathVariable UUID establecimientoId,
+                                       @RequestParam(defaultValue = "true") boolean activo) {
+        return facade.listarInsumos(establecimientoId, activo).stream().map(InsumoResponse::desde).toList();
     }
 
     @GetMapping("/{id}")
-    public InsumoResponse consultar(@PathVariable UUID id) {
-        return InsumoResponse.desde(facade.consultarInsumo(id));
+    public InsumoResponse consultar(@PathVariable UUID establecimientoId, @PathVariable UUID id) {
+        return InsumoResponse.desde(facade.consultarInsumo(establecimientoId, id));
     }
 
     @GetMapping("/{id}/stock")
-    public StockInsumoResponse consultarStock(@PathVariable UUID id) {
-        return StockInsumoResponse.desde(facade.consultarInsumo(id));
+    public StockInsumoResponse consultarStock(@PathVariable UUID establecimientoId, @PathVariable UUID id) {
+        return StockInsumoResponse.desde(facade.consultarInsumo(establecimientoId, id));
     }
 
     @PutMapping("/{id}")
-    public InsumoResponse editar(@PathVariable UUID id, @Valid @RequestBody EditarInsumoRequest request) {
-        return InsumoResponse.desde(facade.editarInsumo(id, request.nombre(),
-                request.costoUnitario(), request.puntoReorden()));
+    public InsumoResponse editar(@PathVariable UUID establecimientoId, @PathVariable UUID id,
+                                 @Valid @RequestBody EditarInsumoRequest request) {
+        return InsumoResponse.desde(facade.editarInsumo(establecimientoId, id, request.nombre(),
+                request.costoUnitario(), request.puntoReorden(), request.contenidoEnvase()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> darDeBaja(@PathVariable UUID id) {
-        facade.darDeBajaInsumo(id);
+    public ResponseEntity<Void> darDeBaja(@PathVariable UUID establecimientoId, @PathVariable UUID id) {
+        facade.darDeBajaInsumo(establecimientoId, id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/alta")
-    public InsumoResponse darDeAlta(@PathVariable UUID id) {
-        return InsumoResponse.desde(facade.darDeAltaInsumo(id));
+    public InsumoResponse darDeAlta(@PathVariable UUID establecimientoId, @PathVariable UUID id) {
+        return InsumoResponse.desde(facade.darDeAltaInsumo(establecimientoId, id));
     }
 }

@@ -23,6 +23,8 @@ services:
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://db:5432/barstock}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-barstock}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-cambiar_en_local}
+      # "demo" carga Bar Ámbar y La Esquina (db/demo). Dejarlo vacío para una base sin datos de ejemplo.
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-demo}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:

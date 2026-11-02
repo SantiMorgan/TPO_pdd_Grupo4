@@ -11,9 +11,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface InsumoRepository extends JpaRepository<Insumo, UUID> {
-    boolean existsByCodigo(String codigo);
+    boolean existsByEstablecimientoIdAndCodigo(UUID establecimientoId, String codigo);
 
-    List<Insumo> findByActivoOrderByNombreAscIdAsc(boolean activo);
+    List<Insumo> findByEstablecimientoIdAndActivoOrderByNombreAscIdAsc(UUID establecimientoId, boolean activo);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from Insumo i where i.id = :id")

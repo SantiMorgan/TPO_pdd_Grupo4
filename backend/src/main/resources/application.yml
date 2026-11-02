@@ -15,6 +15,13 @@ spring:
   flyway:
     default-schema: barstock
     schemas: barstock
+    # Los datos de demostración son una migración repetible opcional (perfil demo).
+    ignore-migration-patterns: "*:future,repeatable:missing"
+  jackson:
+    time-zone: America/Argentina/Buenos_Aires
+
+barstock:
+  zona-horaria: America/Argentina/Buenos_Aires
 
 management:
   endpoints:
