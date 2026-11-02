@@ -26,7 +26,7 @@ export const ROLES = {
   ENCARGADO: {
     nombre: 'Encargado',
     icono: '📋',
-    descripcion: 'Operación diaria: insumos, compras, auditoría de mermas y alertas de reposición.',
+    descripcion: 'Operación diaria: compras, auditoría de mermas y alertas de reposición.',
     pideNombre: 'Tu nombre',
     vistas: [
       { id: 'inventario', icono: '▤', titulo: 'Inventario y compras' },
@@ -37,17 +37,20 @@ export const ROLES = {
   DUENO: {
     nombre: 'Dueño',
     icono: '👔',
-    descripcion: 'Rentabilidad de sus bares: reportes, política de precios, menú y configuración.',
+    descripcion: 'Rentabilidad de sus bares: reportes, precios, menú, insumos y configuración.',
     pideNombre: 'Tu nombre',
+    // Solo el dueño da de alta insumos nuevos y carga su stock inicial.
+    permisos: ['CREAR_INSUMOS'],
     vistas: [
       { id: 'resumen', icono: '◫', titulo: 'Resumen' },
       { id: 'reportes', icono: '▥', titulo: 'Reportes' },
       { id: 'precios', icono: '％', titulo: 'Precios' },
-      { id: 'menu', icono: '🍹', titulo: 'Menú y recetas' },
+      { id: 'menu', icono: '🍹', titulo: 'Menú e insumos' },
       { id: 'establecimientos', icono: '⚙', titulo: 'Establecimientos' },
     ],
   },
 };
 
+export const puede = (rol, permiso) => Boolean(ROLES[rol]?.permisos?.includes(permiso));
 export const vistaPermitida = (rol, vista) => ROLES[rol]?.vistas.some((v) => v.id === vista);
 export const vistaInicial = (rol) => ROLES[rol]?.vistas[0].id;

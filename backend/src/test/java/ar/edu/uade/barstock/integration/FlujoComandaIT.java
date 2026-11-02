@@ -42,12 +42,13 @@ class FlujoComandaIT {
 
     @BeforeEach
     void prepararBar() {
-        for (String tabla : List.of("notificacion", "detalle_auditoria", "auditoria", "movimiento_stock", "item_comanda",
+        for (String tabla : List.of("notificacion", "detalle_auditoria", "auditoria", "movimiento_stock",
+                "devolucion_item", "item_comanda",
                 "comanda", "ingrediente_receta", "receta", "insumo", "establecimiento")) {
             jdbc.update("DELETE FROM barstock." + tabla);
         }
         String id = http.postForObject("/api/establecimientos",
-                Map.of("codigo", "IT", "nombre", "Bar de prueba", "zona", "CABA"), JsonNode.class).get("id").asText();
+                Map.of("codigo", "IT", "nombre", "Bar de prueba", "zona", "CABA", "direccion", "Av. Siempre Viva 742"), JsonNode.class).get("id").asText();
         bar = "/api/establecimientos/" + id;
         cambiarModoDePrecio("NORMAL");
         put(bar + "/alertas", Map.of("canales", List.of("PANEL", "EMAIL"), "email", "encargado@it.example"));
@@ -143,29 +144,44 @@ class FlujoComandaIT {
     }
 
     @Test
-    void laDevolucionRevierteElIngresoPeroNoReponeLosInsumos() {
-        String comanda = registrarYPreparar(1);
-        post(comanda + "/despachar");
-        var anulada = http.postForObject(comanda + "/anular", Map.of("motivo", "Trago devuelto"), JsonNode.class);
+    void devolverUnTragoRevierteSuImporteSinAnularLaComandaNiReponerInsumos() {
+        String comanda = registrarYPreparar(2);
+        String item = post(comanda + "/despachar").getBody().get("items").get(0).get("id").asText();
 
-        assertThat(anulada.get("estado").asText()).isEqualTo("ANULADA");
-        assertThat(anulada.get("estadoAlAnular").asText()).isEqualTo("DESPACHADA");
-        assertThat(stock(gin)).isEqualByComparingTo("850");
+        var parcial = http.postForObject(comanda + "/devoluciones",
+                Map.of("itemId", item, "cantidad", 1, "motivo", "Estaba muy dulce"), JsonNode.class);
+        assertThat(parcial.get("estado").asText()).isEqualTo("DESPACHADA");
+        assertThat(parcial.get("totalNeto").decimalValue()).isEqualByComparingTo("9800");
+        assertThat(parcial.get("devoluciones").get(0).get("motivo").asText()).isEqualTo("Estaba muy dulce");
+        assertThat(stock(gin)).isEqualByComparingTo("800");
         var indicadores = http.getForObject(bar + "/reportes", JsonNode.class).get("indicadores");
-        assertThat(indicadores.get("ventasNetas").decimalValue()).isEqualByComparingTo("0");
-        assertThat(indicadores.get("devoluciones").decimalValue()).isEqualByComparingTo("9800");
-        assertThat(post(comanda + "/anular").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(indicadores.get("ventasNetas").decimalValue()).isEqualByComparingTo("9800");
+        assertThat(indicadores.get("tragosDevueltos").asInt()).isEqualTo(1);
+
+        assertThat(http.postForEntity(comanda + "/devoluciones", Map.of("itemId", item, "cantidad", 2,
+                "motivo", "Son demasiados"), JsonNode.class).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(http.postForEntity(comanda + "/anular", Map.of("motivo", "Trago devuelto"), JsonNode.class)
+                .getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+
+        var total = http.postForObject(comanda + "/devoluciones",
+                Map.of("itemId", item, "cantidad", 1, "motivo", "El cliente se fue"), JsonNode.class);
+        assertThat(total.get("estado").asText()).isEqualTo("ANULADA");
+        assertThat(total.get("estadoAlAnular").asText()).isEqualTo("DESPACHADA");
+        assertThat(http.getForObject(bar + "/reportes", JsonNode.class).get("indicadores").get("ventasNetas")
+                .decimalValue()).isEqualByComparingTo("0");
     }
 
     @Test
     void elRecuentoFisicoAjustaElStockYLosDecoradoresAgreganSusSecciones() {
         post(registrarYPreparar(1) + "/despachar");
         var auditoria = http.postForEntity(bar + "/auditorias", Map.of("responsable", "Encargado",
-                "conteos", List.of(Map.of("insumoId", gin, "stockFisico", 830))), JsonNode.class);
+                "conteos", List.of(Map.of("insumoId", gin, "envasesCompletos", 1, "restante", 80,
+                        "comentario", "Se rompió una botella"))), JsonNode.class);
 
         assertThat(auditoria.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(auditoria.getBody().get("mermaTotal").decimalValue()).isEqualByComparingTo("506.60");
-        assertThat(stock(gin)).isEqualByComparingTo("830");
+        assertThat(auditoria.getBody().get("detalles").get(0).get("comentario").asText()).isEqualTo("Se rompió una botella");
+        assertThat(stock(gin)).isEqualByComparingTo("830"); // 750 + 80
 
         var reporte = http.getForObject(bar + "/reportes?secciones=GRAFICO,MERMAS", JsonNode.class);
         assertThat(reporte.get("composicion").toString())
@@ -173,7 +189,18 @@ class FlujoComandaIT {
         assertThat(reporte.get("secciones").get(0).get("datos").get(0).get("trago").asText()).isEqualTo("Gin Tonic");
         assertThat(reporte.get("secciones").get(1).get("datos").get(0).get("costo").decimalValue())
                 .isEqualByComparingTo("506.60");
+        assertThat(reporte.get("secciones").get(1).get("datos").get(0).get("envasesPerdidos").decimalValue())
+                .isEqualByComparingTo("0.03");
         assertThat(reporte.get("indicadores").get("mermas").decimalValue()).isEqualByComparingTo("506.60");
+
+        String hoy = reporte.get("periodo").get("hasta").asText();
+        var manana = http.getForObject(bar + "/reportes?desde=" + java.time.LocalDate.parse(hoy).plusDays(1)
+                + "&hasta=" + java.time.LocalDate.parse(hoy).plusDays(1), JsonNode.class);
+        assertThat(manana.get("indicadores").get("comandasCobradas").asInt()).isZero();
+        assertThat(http.getForEntity(bar + "/reportes?desde=2026-11-05&hasta=2026-11-01", JsonNode.class)
+                .getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(http.getForEntity("/api/reportes/diario?jornada=" + hoy, JsonNode.class).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
     }
 
     @Test
@@ -232,7 +259,7 @@ class FlujoComandaIT {
 
     private void cambiarModoDePrecio(String modo) {
         put(bar + "/politica-precio", Map.of("modo", modo, "inicioHappyHour", "18:00", "finHappyHour", "21:00",
-                "descuentoHappyHour", 20, "incrementoDemandaAlta", 15, "umbralDemandaAlta", 4, "margenMinimo", 50));
+                "descuentoHappyHour", 20, "margenMinimo", 50));
     }
 
     private BigDecimal stock(String insumo) {

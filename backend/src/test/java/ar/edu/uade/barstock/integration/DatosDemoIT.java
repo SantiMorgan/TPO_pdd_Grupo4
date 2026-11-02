@@ -41,6 +41,27 @@ class DatosDemoIT {
         assertThat(insumos).isEqualTo(12);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         assertThat(jdbc.queryForObject("SELECT count(*) FROM barstock.insumo", Integer.class)).isEqualTo(insumos);
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("6");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("7");
+    }
+
+    @Test
+    void traeHistorialDeVentasParaQueLosReportesTenganDatos() {
+        var bares = http.getForObject("/api/establecimientos", JsonNode.class);
+        assertThat(bares.findValuesAsText("direccion")).allMatch(direccion -> !direccion.isBlank());
+
+        var semana = http.getForObject("/api/reportes?secciones=TENDENCIAS,MERMAS", JsonNode.class);
+        assertThat(semana.get("establecimientos")).hasSize(2);
+        assertThat(semana.get("indicadores").get("comandasCobradas").asInt()).isPositive();
+        var tendencia = semana.get("secciones").get(0).get("datos");
+        assertThat(tendencia.get("ventasAnterior").decimalValue()).isPositive();
+        assertThat(tendencia.get("porEstablecimiento")).hasSize(2);
+
+        String ayer = semana.get("periodo").get("hasta").asText();
+        var diario = http.getForObject("/api/reportes/diario?jornada=" + java.time.LocalDate.parse(ayer).minusDays(1),
+                JsonNode.class);
+        assertThat(diario.get("turnos").findValuesAsText("codigo")).containsExactly("MEDIODIA", "NOCHE");
+        assertThat(diario.get("total").get("comandasCobradas").asInt()).isEqualTo(
+                diario.get("turnos").get(0).get("indicadores").get("comandasCobradas").asInt()
+                        + diario.get("turnos").get(1).get("indicadores").get("comandasCobradas").asInt());
     }
 }

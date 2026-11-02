@@ -40,7 +40,7 @@ public class EstablecimientoController {
     @PostMapping
     public ResponseEntity<EstablecimientoResponse> crear(@Valid @RequestBody EstablecimientoRequest request) {
         var establecimiento = facade.crearEstablecimiento(request.codigo(), request.nombre(), request.zona(),
-                request.descripcion());
+                request.direccion(), request.descripcion(), request.horario() == null ? null : request.horario().aModelo());
         return ResponseEntity.created(URI.create("/api/establecimientos/" + establecimiento.getId()))
                 .body(EstablecimientoResponse.desde(establecimiento));
     }
@@ -48,7 +48,8 @@ public class EstablecimientoController {
     @PutMapping("/{id}")
     public EstablecimientoResponse editar(@PathVariable UUID id, @Valid @RequestBody EstablecimientoRequest request) {
         return EstablecimientoResponse.desde(facade.editarEstablecimiento(id, request.nombre(), request.zona(),
-                request.descripcion()));
+                request.direccion(), request.descripcion(),
+                request.horario() == null ? null : request.horario().aModelo()));
     }
 
     @PutMapping("/{id}/politica-precio")

@@ -3,6 +3,7 @@ package ar.edu.uade.barstock.model.persistence;
 import ar.edu.uade.barstock.model.comanda.Comanda;
 import ar.edu.uade.barstock.model.comanda.state.EstadoComanda;
 import jakarta.persistence.LockModeType;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -24,9 +25,8 @@ public interface ComandaRepository extends JpaRepository<Comanda, UUID> {
 
     List<Comanda> findByEstablecimientoIdOrderByNumeroDesc(UUID establecimientoId, Pageable pagina);
 
-    @Query("select count(c) from Comanda c where c.establecimientoId = :establecimiento and c.estado in :estados")
-    long contarPorEstados(@Param("establecimiento") UUID establecimientoId,
-                          @Param("estados") Collection<EstadoComanda> estados);
-
-    List<Comanda> findByEstablecimientoIdAndDespachadaEnIsNotNullOrderByDespachadaEnAsc(UUID establecimientoId);
+    @Query("select c from Comanda c where c.establecimientoId in :establecimientos and c.despachadaEn >= :desde"
+            + " and c.despachadaEn < :hasta order by c.despachadaEn")
+    List<Comanda> buscarDespachadas(@Param("establecimientos") Collection<UUID> establecimientos,
+                                    @Param("desde") Instant desde, @Param("hasta") Instant hasta);
 }

@@ -42,6 +42,9 @@ public class ItemComanda {
     @Column(nullable = false)
     private int posicion;
 
+    @Column(name = "cantidad_devuelta", nullable = false)
+    private int cantidadDevuelta;
+
     protected ItemComanda() {
         // Constructor requerido por JPA.
     }
@@ -68,10 +71,29 @@ public class ItemComanda {
         return costoUnitario.multiply(BigDecimal.valueOf(cantidad));
     }
 
+    /** Unidades entregadas que el cliente no devolvió. */
+    public int cantidadVendida() {
+        return cantidad - cantidadDevuelta;
+    }
+
+    public BigDecimal subtotalVendido() {
+        return precioUnitario.multiply(BigDecimal.valueOf(cantidadVendida()));
+    }
+
+    void registrarDevolucion(int unidades) {
+        if (unidades < 1 || unidades > cantidadVendida()) {
+            throw new IllegalArgumentException(cantidadVendida() == 0
+                    ? "Ya se devolvieron todos los " + nombreReceta
+                    : "Podés devolver entre 1 y " + cantidadVendida() + " " + nombreReceta);
+        }
+        cantidadDevuelta += unidades;
+    }
+
     public UUID getId() { return id; }
     public UUID getRecetaId() { return recetaId; }
     public String getNombreReceta() { return nombreReceta; }
     public int getCantidad() { return cantidad; }
+    public int getCantidadDevuelta() { return cantidadDevuelta; }
     public BigDecimal getPrecioUnitario() { return precioUnitario; }
     public BigDecimal getCostoUnitario() { return costoUnitario; }
 }

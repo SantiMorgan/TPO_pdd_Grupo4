@@ -15,9 +15,9 @@ public record ComparacionPreciosResponse(List<Estrategia> estrategias, List<Fila
                 .toList());
     }
 
-    public record Estrategia(String codigo, String nombre, String clase) {
+    public record Estrategia(String codigo, String nombre) {
         static Estrategia de(EstrategiaPrecio estrategia) {
-            return new Estrategia(estrategia.codigo(), estrategia.nombre(), estrategia.getClass().getSimpleName());
+            return new Estrategia(estrategia.codigo(), estrategia.nombre());
         }
     }
 

@@ -23,13 +23,16 @@ import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 
 /**
- * Contexto del patrón State: delega preparar, despachar y anular en su estado actual.
+ * Contexto del patrón State: delega preparar, despachar, anular y devolver en su estado actual.
  * También es Creador (GRASP) de sus ítems y Experto en calcular su total.
  */
 @Entity
@@ -88,6 +91,12 @@ public class Comanda {
     @OrderBy("posicion")
     private List<ItemComanda> items = new ArrayList<>();
 
+    // Consulta aparte (no join) para no multiplicar las filas de los ítems.
+    @OneToMany(mappedBy = "comanda", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
+    @OrderBy("registradaEn")
+    private Set<DevolucionItem> devoluciones = new LinkedHashSet<>();
+
     @Version
     private long version;
 
@@ -133,10 +142,22 @@ public class Comanda {
     }
 
     public void anular(String motivo, Instant ahora) {
+        estado.anular(this, validarMotivo(motivo), ahora);
+    }
+
+    /** Devolución de algunas unidades de un trago; el estado decide si se admite. */
+    public void devolver(UUID itemId, int cantidad, String motivo, Instant ahora) {
+        String motivoValidado = validarMotivo(motivo);
+        ItemComanda item = items.stream().filter(i -> i.getId().equals(itemId)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Ese trago no es parte de la comanda #" + numero));
+        estado.devolver(this, item, cantidad, motivoValidado, ahora);
+    }
+
+    private static String validarMotivo(String motivo) {
         if (motivo == null || motivo.strip().length() < MINIMO_MOTIVO) {
             throw new IllegalArgumentException("Indicá un motivo de al menos " + MINIMO_MOTIVO + " caracteres");
         }
-        estado.anular(this, Validacion.texto(motivo, 220, "motivo"), ahora);
+        return Validacion.texto(motivo, 220, "motivo");
     }
 
     public BigDecimal calcularTotal() {
@@ -159,14 +180,42 @@ public class Comanda {
         return estado.accionesPermitidas();
     }
 
-    /** Ingreso que cuenta como venta: despachada y no devuelta. */
+    /** Ingreso que cuenta como venta: despachada y no devuelta por completo. */
     public boolean cuentaComoVenta() {
         return estado == EstadosComanda.DESPACHADA;
     }
 
-    /** Se despachó y después se anuló: consumió insumos pero su importe dejó de ser ingreso. */
+    /** Se despachó y después se devolvió entera: consumió insumos pero su importe dejó de ser ingreso. */
     public boolean fueDevuelta() {
         return estado == EstadosComanda.ANULADA && despachadaEn != null;
+    }
+
+    public boolean todoDevuelto() {
+        return items.stream().allMatch(item -> item.cantidadVendida() == 0);
+    }
+
+    /** Las devoluciones completas anteriores a la devolución por trago no tienen detalle: cuenta el total. */
+    public BigDecimal importeDevuelto() {
+        if (fueDevuelta() && devoluciones.isEmpty()) {
+            return total;
+        }
+        return devoluciones.stream().map(DevolucionItem::getImporte).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public int unidadesDevueltas() {
+        if (fueDevuelta() && devoluciones.isEmpty()) {
+            return unidades();
+        }
+        return devoluciones.stream().mapToInt(DevolucionItem::getCantidad).sum();
+    }
+
+    /** Lo cobrado y no devuelto. Cero si la comanda no se despachó o se devolvió entera. */
+    public BigDecimal ventaNeta() {
+        return cuentaComoVenta() ? total.subtract(importeDevuelto()) : BigDecimal.ZERO;
+    }
+
+    public int unidadesVendidas() {
+        return cuentaComoVenta() ? items.stream().mapToInt(ItemComanda::cantidadVendida).sum() : 0;
     }
 
     // Operaciones que invocan los estados concretos.
@@ -181,6 +230,11 @@ public class Comanda {
 
     public void registrarDespacho(Instant ahora) {
         this.despachadaEn = ahora;
+    }
+
+    public void registrarDevolucion(ItemComanda item, int cantidad, String motivo, Instant ahora) {
+        item.registrarDevolucion(cantidad);
+        devoluciones.add(new DevolucionItem(this, item, cantidad, motivo, ahora));
     }
 
     public void registrarAnulacion(EstadoComanda desde, String motivo, Instant ahora) {
@@ -205,6 +259,7 @@ public class Comanda {
     public String getEstadoAlAnular() { return estadoAlAnular; }
     public String getMotivoAnulacion() { return motivoAnulacion; }
     public List<ItemComanda> getItems() { return List.copyOf(items); }
+    public List<DevolucionItem> getDevoluciones() { return List.copyOf(devoluciones); }
 
     public boolean perteneceA(UUID establecimiento) {
         return establecimientoId.equals(establecimiento);

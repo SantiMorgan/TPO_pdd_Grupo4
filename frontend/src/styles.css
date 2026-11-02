@@ -34,7 +34,7 @@
 .rol-actual button { margin-left: auto; background: none; border: 1px solid #44506a; color: #c4cfdf; border-radius: 8px; font-size: 10px; padding: 5px 8px; }
 .rol-actual button:hover { background: #2a3444; color: #fff; }
 
-/* Seguimiento del pedido del cliente (State) */
+/* Seguimiento del pedido del cliente */
 .stepper { display: flex; align-items: center; gap: 6px; margin: 12px 0 4px; }
 .stepper-paso { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); font-weight: 700; }
 .stepper-paso .punto { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #d9e0e9; display: grid; place-items: center; font-size: 11px; background: #fff; }
@@ -55,10 +55,14 @@
 .segmentado button.activo { background: var(--gold); border-color: var(--gold); color: #fff; }
 td.vigente, th.vigente { background: #fff8f1; }
 
-/* Reportes (Decorator) */
-.cadena { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.cadena .eslabon { font: 11px ui-monospace, SFMono-Regular, Consolas, monospace; background: #141e2d; color: #efb47f; border-radius: 7px; padding: 5px 8px; }
-.cadena .eslabon.base { color: #b9cbe0; }
+/* Reportes */
+.filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 11px; }
+.ancho-completo { grid-column: 1 / -1; }
+.cols-half > .card + .card, .cols-3 > .card + .card { margin-top: 0; }
+.bar-total-ancho { width: 86px; }
+.consejos { margin: 6px 0 0; padding-left: 18px; }
+.consejos li { margin: 3px 0; }
+.tarjeta-destacada { border-color: var(--gold); background: #fffaf5; }
 .casillas { display: flex; flex-wrap: wrap; gap: 8px; }
 .casilla { display: flex; align-items: center; gap: 7px; border: 1px solid var(--edge); border-radius: 10px; padding: 9px 12px; font-size: 12px; font-weight: 650; background: #fff; cursor: pointer; }
 .casilla input { width: auto; }
@@ -73,6 +77,15 @@ td.vigente, th.vigente { background: #fff8f1; }
 .contador { font-variant-numeric: tabular-nums; font-weight: 800; }
 details.detalle-auditoria summary { cursor: pointer; list-style: none; }
 details.detalle-auditoria summary::-webkit-details-marker { display: none; }
+td.texto-largo { white-space: normal; min-width: 180px; font-size: 11px; }
+
+/* Recuento por botellas y devoluciones por trago */
+.input-tiny { width: 74px; padding: 7px 8px; }
+table.recuento tr.con-comentario td { border-bottom: 0; }
+tr.fila-comentario td { padding-top: 0; }
+tr.fila-comentario small { display: block; margin-top: 4px; }
+.devoluciones { list-style: none; padding: 0; margin: 6px 0 0; font-size: 11px; color: var(--red); }
+.devoluciones li { padding: 2px 0; }
 
 @media (max-width: 900px) { .rol-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .rol-grid { grid-template-columns: 1fr; } .ingreso-card { padding: 22px 16px; } .stepper { flex-wrap: wrap; } }

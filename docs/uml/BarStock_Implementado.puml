@@ -1,5 +1,5 @@
 @startuml ArquitecturaImplementada
-title Arquitectura implementada - MVC + Facade (rama feature/app-roles-patrones)
+title Arquitectura implementada - MVC + Facade
 
 package "Vista (React)" {
   class VistaPorRol <<guarda por rol>>
@@ -28,10 +28,12 @@ package "Facade" {
     +prepararComanda()
     +despacharComanda()
     +anularComanda()
+    +devolverTrago()
     +registrarCompra()
     +auditarInventario()
     +consultarCarta()
     +generarReporte()
+    +generarReporteDiario()
   }
 }
 
@@ -83,8 +85,15 @@ class Comanda {
   +preparar(ahora)
   +despachar(ahora)
   +anular(motivo, ahora)
+  +devolver(itemId, cantidad, motivo, ahora)
+  +ventaNeta(): BigDecimal
   +accionesPermitidas(): Set<AccionComanda>
   +setEstado(EstadoComanda)
+}
+class DevolucionItem <<entidad>> {
+  -cantidad: int
+  -importe: BigDecimal
+  -motivo: String
 }
 interface EstadoComanda {
   +codigo(): String
@@ -92,6 +101,7 @@ interface EstadoComanda {
   +preparar(Comanda, Instant)
   +despachar(Comanda, Instant)
   +anular(Comanda, String, Instant)
+  +devolver(Comanda, ItemComanda, int, String, Instant)
 }
 note right of EstadoComanda : Por defecto cada método lanza\nTransicionInvalidaException (409)
 class Registrada
@@ -101,6 +111,7 @@ class Anulada
 class EstadoComandaConverter <<JPA>>
 
 Comanda --> EstadoComanda
+Comanda *-- DevolucionItem
 EstadoComanda <|.. Registrada
 EstadoComanda <|.. EnPreparacion
 EstadoComanda <|.. Despachada
@@ -109,7 +120,8 @@ Registrada --> EnPreparacion : preparar()
 Registrada --> Anulada : anular()
 EnPreparacion --> Despachada : despachar()
 EnPreparacion --> Anulada : anular() [fallida]
-Despachada --> Anulada : anular() [devolución, sin reponer stock]
+Despachada --> Despachada : devolver() [parcial, sin reponer stock]
+Despachada --> Anulada : devolver() [todas las unidades]
 EstadoComandaConverter ..> EstadoComanda
 @enduml
 
@@ -127,12 +139,9 @@ class PrecioHappyHour {
   -descuento: BigDecimal
   -margenMinimo: BigDecimal
 }
-class PrecioDemandaAlta {
-  -incremento: BigDecimal
-}
 class SelectorEstrategiaPrecio {
   -reloj: Clock
-  +vigente(Establecimiento, comandasEnCurso): EstrategiaVigente
+  +vigente(Establecimiento): EstrategiaVigente
   +todas(Establecimiento): List<EstrategiaPrecio>
 }
 class PoliticaPrecio <<Embeddable>> {
@@ -144,7 +153,6 @@ class Carta
 
 EstrategiaPrecio <|.. PrecioNormal
 EstrategiaPrecio <|.. PrecioHappyHour
-EstrategiaPrecio <|.. PrecioDemandaAlta
 SelectorEstrategiaPrecio ..> PoliticaPrecio
 SelectorEstrategiaPrecio ..> EstrategiaPrecio : crea
 Comanda ..> EstrategiaPrecio : fija el precio al registrar
@@ -228,7 +236,22 @@ enum TipoSeccion {
 }
 interface FuenteDatosReporte
 class FuenteDatosReporteJpa
-class GeneradorReportes
+class GeneradorReportes {
+  +generar(establecimientos, Periodo, Turno, secciones)
+  +generarDiario(establecimientos, jornada): ReporteDiario
+}
+class DatosReporte <<record>>
+class Periodo <<record>> {
+  +anterior(): Periodo
+}
+class CalendarioJornadas {
+  +jornadaDe(Instant): LocalDate
+  +turnoDe(establecimiento, Instant): Turno
+}
+class HorarioAtencion <<Embeddable>> {
+  +INICIO_JORNADA = 6:00
+  +turnoDe(LocalTime): Turno
+}
 
 Reporte <|.. ReporteBase
 Reporte <|.. ReporteDecorator
@@ -239,5 +262,9 @@ ReporteDecorator <|-- ReporteConMermas
 ReporteDecorator <|-- ReporteConMargen
 GeneradorReportes ..> TipoSeccion
 GeneradorReportes --> FuenteDatosReporte
+GeneradorReportes ..> DatosReporte : filtra por bar, período y turno
+DatosReporte --> Periodo
+DatosReporte --> CalendarioJornadas
+CalendarioJornadas ..> HorarioAtencion
 FuenteDatosReporte <|.. FuenteDatosReporteJpa
 @enduml

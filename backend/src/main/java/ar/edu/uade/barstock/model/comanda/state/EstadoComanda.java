@@ -1,6 +1,7 @@
 package ar.edu.uade.barstock.model.comanda.state;
 
 import ar.edu.uade.barstock.model.comanda.Comanda;
+import ar.edu.uade.barstock.model.comanda.ItemComanda;
 import java.time.Instant;
 import java.util.Set;
 
@@ -29,5 +30,9 @@ public interface EstadoComanda {
 
     default void anular(Comanda comanda, String motivo, Instant ahora) {
         throw new TransicionInvalidaException(comanda, this, "anular");
+    }
+
+    default void devolver(Comanda comanda, ItemComanda item, int cantidad, String motivo, Instant ahora) {
+        throw new TransicionInvalidaException(comanda, this, "registrar una devolución");
     }
 }

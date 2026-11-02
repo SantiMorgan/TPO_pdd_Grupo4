@@ -57,6 +57,12 @@ public class ComandaService {
         return transicionar(establecimientoId, comandaId, comanda -> comanda.anular(motivo, Instant.now(reloj)));
     }
 
+    @Transactional
+    public Comanda devolver(UUID establecimientoId, UUID comandaId, UUID itemId, int cantidad, String motivo) {
+        return transicionar(establecimientoId, comandaId,
+                comanda -> comanda.devolver(itemId, cantidad, motivo, Instant.now(reloj)));
+    }
+
     public Comanda consultar(UUID establecimientoId, UUID comandaId) {
         return comandas.findById(comandaId)
                 .filter(comanda -> comanda.perteneceA(establecimientoId))
@@ -70,10 +76,6 @@ public class ComandaService {
     public List<Comanda> listarRecientes(UUID establecimientoId, int limite) {
         return comandas.findByEstablecimientoIdOrderByNumeroDesc(establecimientoId,
                 PageRequest.of(0, Math.max(1, Math.min(limite, 100))));
-    }
-
-    public long contarEnCurso(UUID establecimientoId) {
-        return comandas.contarPorEstados(establecimientoId, EstadosComanda.enCurso());
     }
 
     private Comanda transicionar(UUID establecimientoId, UUID comandaId, Consumer<Comanda> accion) {

@@ -1,5 +1,6 @@
 package ar.edu.uade.barstock.model;
 
+import ar.edu.uade.barstock.model.establecimiento.Establecimiento;
 import ar.edu.uade.barstock.model.inventario.Insumo;
 import ar.edu.uade.barstock.model.inventario.UnidadMedida;
 import ar.edu.uade.barstock.model.receta.Receta;
@@ -7,12 +8,20 @@ import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /** Datos de ejemplo para las pruebas unitarias, con los valores del Bar Ámbar de la demo. */
 public final class Ejemplos {
     public static final UUID BAR = UUID.fromString("00000000-0000-0000-0000-0000000000a1");
 
     private Ejemplos() {
+    }
+
+    /** Bar Ámbar con el id de la demo, para que coincida con los insumos y comandas de ejemplo. */
+    public static Establecimiento bar() {
+        Establecimiento bar = new Establecimiento("AMBAR", "Bar Ámbar", "Palermo", "Gorriti 4850", "");
+        ReflectionTestUtils.setField(bar, "id", BAR);
+        return bar;
     }
 
     public static Insumo insumo(String codigo, String stock, String costoUnitario, String puntoReorden) {

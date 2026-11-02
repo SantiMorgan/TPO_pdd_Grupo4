@@ -45,19 +45,12 @@ class EstrategiaPrecioTest {
     }
 
     @Test
-    void demandaAltaAgregaElRecargo() {
-        var estrategia = new PrecioDemandaAlta(new BigDecimal("15"));
-        assertThat(estrategia.calcularPrecio(ginTonic)).isEqualByComparingTo("11270.00");
-        assertThat(estrategia.nombre()).isEqualTo("Demanda alta +15 %");
-    }
-
-    @Test
     void lasEstrategiasSonIntercambiablesDetrasDeLaMismaInterfaz() {
         List<EstrategiaPrecio> estrategias = List.of(new PrecioNormal(),
-                new PrecioHappyHour(new BigDecimal("20"), new BigDecimal("50")), new PrecioDemandaAlta(new BigDecimal("15")));
+                new PrecioHappyHour(new BigDecimal("20"), new BigDecimal("50")));
         assertThat(estrategias).extracting(e -> e.calcularPrecio(ginTonic))
                 .usingElementComparator(BigDecimal::compareTo)
-                .containsExactly(new BigDecimal("9800"), new BigDecimal("7840"), new BigDecimal("11270"));
-        assertThat(estrategias).extracting(EstrategiaPrecio::codigo).containsExactly("NORMAL", "HAPPY_HOUR", "DEMANDA_ALTA");
+                .containsExactly(new BigDecimal("9800"), new BigDecimal("7840"));
+        assertThat(estrategias).extracting(EstrategiaPrecio::codigo).containsExactly("NORMAL", "HAPPY_HOUR");
     }
 }

@@ -24,12 +24,6 @@ public class PoliticaPrecio {
     @Column(name = "happy_hour_descuento", nullable = false, precision = 5, scale = 2)
     private BigDecimal descuentoHappyHour;
 
-    @Column(name = "demanda_alta_incremento", nullable = false, precision = 5, scale = 2)
-    private BigDecimal incrementoDemandaAlta;
-
-    @Column(name = "demanda_alta_umbral", nullable = false)
-    private int umbralDemandaAlta;
-
     @Column(name = "margen_minimo", nullable = false, precision = 6, scale = 2)
     private BigDecimal margenMinimo;
 
@@ -42,8 +36,7 @@ public class PoliticaPrecio {
     }
 
     public PoliticaPrecio(ModoPrecio modo, LocalTime inicioHappyHour, LocalTime finHappyHour,
-                          BigDecimal descuentoHappyHour, BigDecimal incrementoDemandaAlta,
-                          int umbralDemandaAlta, BigDecimal margenMinimo, LocalTime horaSimulada) {
+                          BigDecimal descuentoHappyHour, BigDecimal margenMinimo, LocalTime horaSimulada) {
         if (modo == null || inicioHappyHour == null || finHappyHour == null) {
             throw new IllegalArgumentException("El modo y el horario de Happy Hour son obligatorios");
         }
@@ -51,15 +44,13 @@ public class PoliticaPrecio {
         this.inicioHappyHour = inicioHappyHour.withSecond(0).withNano(0);
         this.finHappyHour = finHappyHour.withSecond(0).withNano(0);
         this.descuentoHappyHour = Validacion.porcentaje(descuentoHappyHour, 90, "descuentoHappyHour");
-        this.incrementoDemandaAlta = Validacion.porcentaje(incrementoDemandaAlta, 100, "incrementoDemandaAlta");
-        this.umbralDemandaAlta = Validacion.entero(umbralDemandaAlta, 1, 99, "umbralDemandaAlta");
         this.margenMinimo = Validacion.porcentaje(margenMinimo, 1000, "margenMinimo");
         this.horaSimulada = horaSimulada == null ? null : horaSimulada.withSecond(0).withNano(0);
     }
 
     public static PoliticaPrecio porDefecto() {
         return new PoliticaPrecio(ModoPrecio.AUTOMATICO, LocalTime.of(18, 0), LocalTime.of(21, 0),
-                new BigDecimal("20"), new BigDecimal("15"), 4, new BigDecimal("50"), null);
+                new BigDecimal("20"), new BigDecimal("50"), null);
     }
 
     /** El intervalo es [inicio, fin) y puede cruzar la medianoche (por ejemplo, de 23:00 a 01:00). */
@@ -81,8 +72,6 @@ public class PoliticaPrecio {
     public LocalTime getInicioHappyHour() { return inicioHappyHour; }
     public LocalTime getFinHappyHour() { return finHappyHour; }
     public BigDecimal getDescuentoHappyHour() { return descuentoHappyHour; }
-    public BigDecimal getIncrementoDemandaAlta() { return incrementoDemandaAlta; }
-    public int getUmbralDemandaAlta() { return umbralDemandaAlta; }
     public BigDecimal getMargenMinimo() { return margenMinimo; }
     public LocalTime getHoraSimulada() { return horaSimulada; }
 }

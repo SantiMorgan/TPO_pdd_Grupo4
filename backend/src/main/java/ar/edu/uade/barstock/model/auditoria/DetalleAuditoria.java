@@ -50,6 +50,13 @@ public class DetalleAuditoria {
     @Column(nullable = false)
     private int posicion;
 
+    @Column(name = "contenido_envase", nullable = false)
+    private int contenidoEnvase;
+
+    /** Justificación de la diferencia: rotura, tragos de cortesía (con el bartender), derrame… */
+    @Column(length = 200)
+    private String comentario;
+
     protected DetalleAuditoria() {
         // Constructor requerido por JPA.
     }
@@ -68,6 +75,15 @@ public class DetalleAuditoria {
                 ? diferencia.negate().multiply(ajuste.costoUnitario()).setScale(2, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO.setScale(2);
         this.posicion = posicion;
+        this.contenidoEnvase = ajuste.contenidoEnvase();
+        this.comentario = ajuste.comentario() == null || ajuste.comentario().isBlank() ? null : ajuste.comentario();
+    }
+
+    /** Merma expresada en envases (por ejemplo, 0,05 botellas); cero si no faltó nada. */
+    public BigDecimal envasesPerdidos() {
+        return diferencia.signum() < 0
+                ? diferencia.negate().divide(BigDecimal.valueOf(contenidoEnvase), 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO.setScale(2);
     }
 
     public UUID getInsumoId() { return insumoId; }
@@ -78,4 +94,6 @@ public class DetalleAuditoria {
     public BigDecimal getDiferencia() { return diferencia; }
     public BigDecimal getCostoMerma() { return costoMerma; }
     public int getPosicion() { return posicion; }
+    public int getContenidoEnvase() { return contenidoEnvase; }
+    public String getComentario() { return comentario; }
 }
