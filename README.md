@@ -19,9 +19,14 @@ Trabajo Práctico — *Proceso de Desarrollo de Software*, UADE (Grupo 4).
 
 **Docente:** Bueno, Moisés Evaristo · **Materia:** Proceso de Desarrollo de Software · **Universidad:** Universidad Argentina de la Empresa (UADE)
 
-> **Estado:** base ejecutable más CRUD de inventario. Incluye creación, consulta, edición, baja lógica y reactivación de insumos, API y persistencia PostgreSQL con `BigDecimal`. Ver [contrato y ejemplos de inventario](docs/api/inventario.md) y [UML implementado](docs/uml/Inventario_Implementado.puml). El stock se carga al crear; descuentos y compras quedan pendientes. La base incluye una pantalla inicial por rol y los endpoints `/api` y `/api/health`. Lo descripto en las secciones de arquitectura es el diseño acordado;
-> las funcionalidades se marcan como implementadas en [Roadmap](#7-roadmap) recién cuando existan y estén testeadas.
-> El reparto y las tareas están en el [plan de trabajo](docs/PLAN_DE_TRABAJO.md). Las reglas de despacho están propuestas en [ADR-001](docs/decisiones/ADR-001-reglas-de-despacho.md), pendiente de aprobación.
+> **Estado:** aplicación completa con los seis patrones implementados y testeados, y una vista por rol (Cliente,
+> Bartender, Encargado y Dueño) sobre varios establecimientos. Flujo comanda → preparación → despacho con descuento
+> atómico en ml, precios dinámicos, alertas de reposición, compras, auditoría de mermas y reportes componibles.
+> 129 pruebas unitarias y 20 de integración con PostgreSQL real. Ver la [API](docs/api/endpoints.md), el
+> [UML implementado](docs/uml/BarStock_Implementado.puml) y las decisiones de [ADR-002](docs/decisiones/ADR-002-roles-y-establecimientos.md)
+> (roles, establecimientos y reglas del [ADR-001](docs/decisiones/ADR-001-reglas-de-despacho.md) que se aplicaron) y
+> [ADR-003](docs/decisiones/ADR-003-revision-actividad-3.md) (ajustes de la revisión); todos pendientes de aprobación del equipo.
+> El reparto original está en el [plan de trabajo](docs/PLAN_DE_TRABAJO.md).
 
 ---
 
@@ -33,19 +38,24 @@ de cada insumo que lo compone. Esto permite comparar el stock teórico con el f�
 
 **Roles**
 
-| Rol | Qué hace |
-|---|---|
-| **Bartender** | Registra comandas, despacha tragos, consulta stock en tiempo real y carga el recuento físico al cierre de turno. |
-| **Encargado** | Gestiona insumos, recetas y compras; audita mermas; consulta reportes de gestión. |
+Al ingresar se elige el establecimiento y el rol. Cada rol ve solo sus pantallas (guarda en `frontend/src/routes`).
+
+| Rol | Vistas | Qué hace |
+|---|---|---|
+| **Cliente** | Carta · Mis pedidos | Ve el menú con el precio vigente (normal o Happy Hour), hace su pedido, lo sigue en vivo y puede devolver un trago. |
+| **Bartender** | Barra / comandas · Stock · Cierre de turno | Recibe los pedidos de clientes, registra comandas, las prepara y despacha, registra devoluciones de tragos; consulta stock en ml y botellas y carga el recuento físico. |
+| **Encargado** | Inventario y compras · Auditoría · Alertas | Compra botellas, edita y da de baja insumos (no los crea), audita mermas con comentarios y revisa los avisos de reposición. |
+| **Dueño** | Resumen · Reportes · Precios · Menú e insumos · Establecimientos | Compara sus bares, arma reportes por bar, fecha y turno (y el diario por jornada), configura los precios, el menú, da de alta insumos con su stock inicial y edita la dirección y los horarios de cada bar. |
 
 **Capacidades principales**
 
-- **Inventario:** insumos con unidad de medida, costo unitario y punto de reorden; registro de compras; descuento atómico por receta.
-- **Recetas:** ingredientes con cantidad mínima/máxima (tolerancia) y cálculo del costo teórico.
-- **Comandas:** ciclo de vida `Registrada → EnPreparacion → Despachada` con posibilidad de `Anulada`.
-- **Precios:** normal, Happy Hour y demanda alta (intercambiables en tiempo de ejecución).
-- **Auditoría:** stock teórico vs. recuento físico, con detección de desvíos.
-- **Alertas y reportes:** aviso automático al llegar al punto de reposición; reportes de gestión componibles.
+- **Inventario:** insumos con código, unidad, costo unitario, contenido por envase y punto de reorden; stock en ml y en botellas; compras por envase; descuento atómico por receta; historial de movimientos.
+- **Recetas:** ingredientes con su cantidad y cálculo del costo teórico; baja lógica del menú.
+- **Comandas:** ciclo de vida `Registrada → EnPreparacion → Despachada`, con `Anulada`. Después del despacho se devuelven tragos sueltos (trago, cantidad y motivo) sin anular el resto; si se devuelve todo, la comanda queda anulada.
+- **Precios:** normal y Happy Hour (con margen mínimo), intercambiables en tiempo de ejecución.
+- **Auditoría:** stock teórico vs. recuento físico en botellas cerradas más lo que queda en la abierta, con un comentario por insumo; ajuste y merma valorizada.
+- **Alertas y reportes:** aviso al cruzar el punto de reposición (panel, email, SMS o WhatsApp simulados); reportes componibles filtrados por establecimiento, período de jornadas y turno, y reporte diario (mediodía + noche, con la madrugada en la misma jornada).
+- **Varios establecimientos:** cada bar con su dirección, horarios de turno, inventario, menú, comandas, precios y alertas.
 
 ---
 
@@ -55,26 +65,36 @@ de cada insumo que lo compone. Esto permite comparar el stock teórico con el f�
 
 ```
  React (Vista)  ──(HTTP/JSON)──▶  Controladores REST  ──▶  BarStockFacade  ──▶  Modelo de dominio ──▶ PostgreSQL
- BartenderView / EncargadoView        (Controlador)         (orquestación)      (lógica + patrones)
+ Cliente / Bartender /                (Controlador)         (orquestación)      (lógica + patrones)
+ Encargado / Dueño
 ```
 
 | Capa MVC | Dónde vive | Responsabilidad |
 |---|---|---|
-| **Vista** | `frontend/` (React) | Dos interfaces diferenciadas por rol. Sin lógica de negocio. |
-| **Controlador** | `backend/.../controller` | Recibe requests, valida formato, delega en `BarStockFacade`. Sin lógica de negocio. |
-| **Facade** | `backend/.../facade` | Punto de entrada único a los casos de uso (`registrarComanda`, `despacharComanda`, `registrarCompra`, `auditarInventario`). Solo orquesta. |
+| **Vista** | `frontend/` (React) | Cuatro interfaces por rol con guarda de rutas. Habla solo con `/api` por `src/api/client.js`. Sin lógica de negocio. |
+| **Controlador** | `backend/.../controller` | Recibe requests, valida formato con DTOs, delega en `BarStockFacade`. `ApiExceptionHandler` traduce errores a `ProblemDetail`. |
+| **Facade** | `backend/.../facade` | Punto de entrada único a los casos de uso (`registrarComanda`, `despacharComanda`, `registrarCompra`, `auditarInventario`, `consultarCarta`, `generarReporte`…). Solo orquesta y define la transacción. |
 | **Modelo** | `backend/.../model` | Entidades, reglas de negocio y los 6 patrones de diseño. Persistencia incluida (`model/persistence`). |
 
-**Patrones de diseño (documentados)**
+**Patrones de diseño (implementados y testeados)**
 
-| Patrón | Uso | Paquete |
-|---|---|---|
-| State | Ciclo de vida de `Comanda` | `model/comanda/state` |
-| Strategy | `EstrategiaPrecio` (Normal, HappyHour, DemandaAlta) | `model/precio` |
-| Observer | `Inventario` → `AlertaStock` | `model/inventario` |
-| Simple Factory | `NotificacionFactory.crear(tipo)` (Email, SMS) | `model/notificacion` |
-| Facade | `BarStockFacade` | `facade` |
-| Decorator | `Reporte` → `ReporteConGrafico`, `ReporteConTendencias` | `model/reporte` |
+| Patrón | Clases | Dónde se ve en la app | Test |
+|---|---|---|---|
+| State | `EstadoComanda` → `Registrada`, `EnPreparacion`, `Despachada`, `Anulada` (`model/comanda/state`) | Los botones del bartender salen de `acciones` del estado; el cliente sigue los pasos; solo `Despachada` admite devolver tragos | `EstadoComandaTest` |
+| Strategy | `EstrategiaPrecio` → `PrecioNormal`, `PrecioHappyHour`; `SelectorEstrategiaPrecio` (`model/precio`) | Precio de la carta y de cada comanda; el dueño fuerza o automatiza la estrategia | `EstrategiaPrecioTest`, `SelectorEstrategiaPrecioTest` |
+| Observer | `Inventario` (sujeto) → `ObservadorStock`: `AlertaStock`, `BitacoraStock` (`model/inventario`) | Alerta de reposición al despachar, comprar o auditar | `InventarioTest`, `AlertaStockTest` |
+| Simple Factory | `NotificacionFactory.crear(TipoNotificacion)` → `NotificacionPanel`, `Email`, `Sms`, `WhatsApp` (`model/notificacion`) | Canales de alerta configurados por bar | `NotificacionFactoryTest` |
+| Facade | `BarStockFacade` (`facade`) | Despacho: coordina Comandas, Recetas e Inventario en una transacción | `BarStockFacadeTest`, `FlujoComandaIT` |
+| Decorator | `Reporte` → `ReporteBase`; `ReporteDecorator` → `ReporteConGrafico`, `ConTendencias`, `ConMermas`, `ConMargen` (`model/reporte`) | El dueño elige las secciones del reporte; la cadena aplicada viaja en `composicion` | `ReporteDecoratorTest`, `GeneradorReportesTest` |
+
+También se aplican **MVC**, **Repository** (Spring Data) y **DTO** para el acceso a datos y el intercambio entre capas,
+y GRASP: Experto (`Receta.calcularCosto()`, `Comanda.calcularTotal()`), Creador (`Comanda` crea sus `ItemComanda`),
+Controlador (controladores REST), Fabricación pura (`TrazaPatrones`, `BitacoraNotificaciones`) y Variaciones protegidas
+(`EstrategiaPrecio`, `Notificacion`, `FuenteDatosReporte`).
+
+La interfaz no muestra nombres de patrones ni detalles técnicos: la explicación de cada patrón, dónde está y cómo
+mostrarlo en la defensa está en [docs/BarStock_Patrones_y_detalles_tecnicos.docx](docs/BarStock_Patrones_y_detalles_tecnicos.docx).
+La traza real de cada patrón sigue disponible en `GET /api/establecimientos/{id}/traza`.
 
 ---
 
@@ -145,7 +165,7 @@ barstock-solutions/
 │       │   │   │   │   └── state/           # EstadoComanda, Registrada, EnPreparacion,
 │       │   │   │   │                        # Despachada, Anulada                           (State)
 │       │   │   │   ├── precio/              # EstrategiaPrecio, PrecioNormal,
-│       │   │   │   │                        # PrecioHappyHour, PrecioDemandaAlta            (Strategy)
+│       │   │   │   │                        # PrecioNormal, PrecioHappyHour                 (Strategy)
 │       │   │   │   ├── notificacion/        # Notificacion, Email, SMS, NotificacionFactory,
 │       │   │   │   │                        # TipoNotificacion                              (Simple Factory)
 │       │   │   │   ├── reporte/             # Reporte, ReporteBase, ReporteDecorator,
@@ -172,19 +192,26 @@ barstock-solutions/
         ├── main.jsx
         ├── api/                  # cliente HTTP hacia /api (único punto de contacto con el backend)
         ├── views/
-        │   ├── bartender/        # BartenderView: registrar venta, stock, recuento físico
-        │   └── encargado/        # EncargadoView: compras, recetas, auditoría, reportes
+        │   ├── cliente/          # carta y mis pedidos (con devolución de tragos)
+        │   ├── bartender/        # barra, stock en ml y botellas, cierre de turno
+        │   ├── encargado/        # inventario y compras, auditoría, alertas
+        │   └── dueno/            # resumen, reportes, precios, menú e insumos, establecimientos
         ├── components/           # componentes reutilizables
         └── routes/               # ruteo y guardas por rol
 ```
 
-El árbol describe la arquitectura objetivo. `EstadoController` y `BarStockFacade` publican el estado
-de la aplicación. El CRUD implementado sigue `InventarioController` → `BarStockFacade` → `InventarioService`
-→ `InsumoRepository`, con el dominio en `model/inventario`. La migración V1 crea el
-esquema `barstock`, V2 incorpora la tabla `insumo` y V3 restringe las cantidades a enteros
-(stock y punto de reorden, tanto en ML como en UNIDAD); los costos conservan dos decimales.
-El prototipo de consola original se conserva en `src/` y no
-forma parte del build de Spring Boot. Los diagramas y el PDF existente están en `docs/uml/` y `docs/entregas/`.
+El árbol muestra la estructura implementada. Además de los paquetes del árbol, el modelo tiene
+`model/establecimiento` (bar, `PoliticaPrecio`, `ConfiguracionAlertas`, `HorarioAtencion` y `Turno`) y `model/traza` (`TrazaPatrones`).
+Los controladores son `EstablecimientoController`, `InventarioController`, `CompraController`, `RecetaController`,
+`CartaController`, `ComandaController`, `AuditoriaController`, `ReporteController` y `SeguimientoController`.
+El frontend tiene una carpeta por rol en `views/` (`cliente`, `bartender`, `encargado`, `dueno`) y la sesión en `session/`.
+
+Migraciones: V1 crea el esquema, V2 la tabla `insumo`, V3 restringe las cantidades a enteros, V4 agrega
+`establecimiento` y asigna cada insumo a un bar, V5 recetas y comandas, V6 movimientos, auditorías y notificaciones,
+y V7 los ajustes de la revisión (dirección y horarios, sin demanda alta, recuento con comentario y devolución por trago).
+Los datos de ejemplo están en `db/demo/R__datos_demo.sql` y se cargan con el perfil `demo`.
+El prototipo de consola original se conserva en `src/` y no forma parte del build de Spring Boot.
+Los diagramas están en `docs/uml/` (el implementado es `BarStock_Implementado.puml`) y las entregas en `docs/entregas/`.
 
 **Reglas de dependencia (se validan en code review):**
 
@@ -218,6 +245,17 @@ docker compose up --build
 - Aplicación: <http://localhost:3000>
 - API: <http://localhost:8080/api>
 - Salud de la API y PostgreSQL: <http://localhost:8080/api/health>
+
+Docker Compose activa el perfil `demo`, que carga **Bar Ámbar** y **La Esquina** con los insumos y recetas del
+prototipo (Campari queda cerca de su punto de reposición para mostrar la alerta con un Negroni) y, en una base nueva,
+cuatro semanas de ventas, recuentos y compras para que los reportes tengan datos. Para una base sin
+datos de ejemplo, poné `SPRING_PROFILES_ACTIVE=` vacío en `.env`. Para volver a los datos iniciales, `make reset-db`
+(borra la base local) y otra vez `make up`.
+
+**Demo sugerida:** abrí dos pestañas. En una entrá como **Cliente** y pedí un Negroni; en la otra como **Bartender**:
+el pedido aparece solo, se prepara y se despacha, y el cliente ve el cambio de estado. Después pasá por **Encargado**
+(compra y recuento físico en botellas) y **Dueño** (Happy Hour forzado, reportes por turno y reporte diario).
+El guion de la defensa, con los patrones que se ven en cada paso, está en el docx de `docs/`.
 
 En PowerShell, desde la carpeta del repositorio:
 
@@ -330,27 +368,27 @@ y ensayo, con congelamiento a las 22:00.
 | Hito | Contenido | Estado |
 |---|---|---|
 | 0 — infraestructura | Andamiaje del repo, Docker Compose, CI, esquema inicial en Flyway | ✅ base implementada y verificada localmente; publicación compartida pendiente |
-| 0 — contratos compartidos | Contratos Java, OpenAPI, tablas de negocio, datos de ejemplo, logging común y casos de integración | ⏳ pendiente |
-| Inventario — CRUD | Alta, consulta, edición, baja lógica y reactivación de insumos; validaciones, persistencia y pruebas | ✅ implementado; contrato en `docs/api/inventario.md` |
-| 1 | Dominio base: `Insumo`, `Inventario`, `Receta`, `IngredienteReceta` + descuento atómico | ⏳ pendiente |
-| 2 | Flujo completo: registrar comanda → despachar → descuento de stock (State + Facade) | ⏳ pendiente |
-| 3 | Strategy de precios + Observer/AlertaStock + Simple Factory | ⏳ pendiente |
-| 4 | Compras, recuento físico y auditoría | ⏳ pendiente |
-| 5 | Reportes (Decorator) y vistas React por rol | ⏳ pendiente |
+| 0 — contratos compartidos | Contratos Java, tablas de negocio, datos de ejemplo y casos de integración | ✅ contratos, migraciones V4–V6, datos `demo` y pruebas de integración. ⏳ OpenAPI formal y `requestId` en logs (la API está en `docs/api/endpoints.md`) |
+| Inventario — CRUD | Alta, consulta, edición, baja lógica y reactivación de insumos; validaciones, persistencia y pruebas | ✅ implementado, ahora por establecimiento; contrato en `docs/api/inventario.md` |
+| 1 | Dominio base: `Insumo`, `Inventario`, `Receta`, `IngredienteReceta` + descuento atómico | ✅ implementado y testeado |
+| 2 | Flujo completo: registrar comanda → despachar → descuento de stock (State + Facade) | ✅ implementado; incluye rollback por falta de stock y doble despacho simultáneo |
+| 3 | Strategy de precios + Observer/AlertaStock + Simple Factory | ✅ implementado y testeado |
+| 4 | Compras, recuento físico y auditoría | ✅ implementado y testeado |
+| 5 | Reportes (Decorator) y vistas React por rol | ✅ implementado: cuatro roles (Cliente, Bartender, Encargado, Dueño) |
+| Futuro | Inicio de sesión real, envío real de email/SMS, predicción de demanda | ⏳ fuera del alcance de la entrega |
 
 ---
 
-## 8. Decisiones abiertas (cerrar antes de implementar el comportamiento afectado)
+## 8. Decisiones (implementadas como propuesta, pendientes de aprobación del equipo)
 
-Las propuestas están en [ADR-001: reglas de despacho](docs/decisiones/ADR-001-reglas-de-despacho.md).
-El archivo se incorpora como propuesta; su inclusión no aprueba sus reglas. El plan enumera los puntos que deben
-cerrarse antes de implementar cada contrato, incluido el precio histórico, el margen de Happy Hour y la concurrencia.
+Las reglas están en [ADR-001](docs/decisiones/ADR-001-reglas-de-despacho.md) y lo que se aplicó en el código, en
+[ADR-002](docs/decisiones/ADR-002-roles-y-establecimientos.md). Si el equipo cambia alguna, se cambia el código afectado.
 
-1. **Anulación post-despacho:** ¿se repone el stock? ¿se revierte el ingreso? El UML permite `Despachada → Anulada` pero no define el efecto.
-2. **Momento del descuento de stock:** ¿al pasar a `EnPreparacion` o a `Despachada`? Hay que fijarlo para evitar doble descuento.
-3. **Precisión numérica:** reemplazar `double` del UML por `BigDecimal` para cantidades (ml) y montos.
-4. **Estrategia de precio:** el UML detallado la declara tanto en `Comanda` como en `Venta`; debe quedar en un único lugar.
-5. **Autenticación por rol:** el UML no define login; hasta confirmarlo, la separación Bartender/Encargado es solo de interfaz.
+1. **Devolución post-despacho:** se devuelven tragos sueltos; su importe deja de contar como ingreso y **no** se repone stock ([ADR-003](docs/decisiones/ADR-003-revision-actividad-3.md)).
+2. **Momento del descuento de stock:** al pasar a `Despachada`, en una única transacción y con bloqueo de fila (sin doble descuento).
+3. **Precisión numérica:** `BigDecimal` para cantidades enteras (ml o unidades) y montos con dos decimales.
+4. **Estrategia de precio:** vive en `Comanda`; el precio se fija al registrar y se guarda por ítem.
+5. **Autenticación por rol:** sigue sin login; los cuatro roles se separan en la interfaz con guarda de rutas.
 6. **¿El backend corre dentro de Docker durante el desarrollo diario?** La base soporta ambos modos; `make dev` incluye recompilación y DevTools dentro de Docker.
 
 ---
@@ -359,7 +397,11 @@ cerrarse antes de implementar cada contrato, incluido el precio histórico, el m
 
 - [Prototipo interactivo](docs/prototipos/BarStock_Solutions_Prototipo_Mejorado.html) — demo HTML independiente con datos en `localStorage`; se abre directamente en el navegador.
 - `docs/entregas/` — Actividad 1, Actividad 2 e infograma.
-- `docs/uml/` — diagramas PlantUML (general y por patrón).
+- `docs/uml/` — diagramas PlantUML (general y por patrón). [BarStock_Implementado.puml](docs/uml/BarStock_Implementado.puml) refleja el código actual.
+- [API](docs/api/endpoints.md) — todos los endpoints por establecimiento; [inventario](docs/api/inventario.md) en detalle.
+- [ADR-002: roles y establecimientos](docs/decisiones/ADR-002-roles-y-establecimientos.md) — decisiones aplicadas en la aplicación.
+- [ADR-003: ajustes de la revisión](docs/decisiones/ADR-003-revision-actividad-3.md) — permisos de insumos, recuento en botellas, jornadas y turnos, devolución por trago.
+- [Patrones y detalles técnicos](docs/BarStock_Patrones_y_detalles_tecnicos.docx) — lo que se quitó de la interfaz, para la defensa.
 - [Plan de trabajo](docs/PLAN_DE_TRABAJO.md) — reparto, tareas, dependencias y pruebas a cargo del líder.
 - [ADR-000: base ejecutable](docs/decisiones/ADR-000-base-ejecutable.md) — registro del andamiaje existente.
 - [ADR-001: reglas de despacho](docs/decisiones/ADR-001-reglas-de-despacho.md) — propuesta de reglas de negocio.

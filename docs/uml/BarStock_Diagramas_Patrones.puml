@@ -72,12 +72,10 @@ interface EstrategiaPrecio {
 }
 class PrecioNormal
 class PrecioHappyHour
-class PrecioDemandaAlta
 
 Venta --> EstrategiaPrecio
 EstrategiaPrecio <|.. PrecioNormal
 EstrategiaPrecio <|.. PrecioHappyHour
-EstrategiaPrecio <|.. PrecioDemandaAlta
 @enduml
 
 

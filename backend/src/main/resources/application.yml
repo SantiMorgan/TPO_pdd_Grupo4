@@ -12,9 +12,18 @@ spring:
     properties:
       hibernate:
         default_schema: barstock
+        # Los reportes de varias jornadas leen cientos de comandas: sus ítems se cargan de a 100.
+        default_batch_fetch_size: 100
   flyway:
     default-schema: barstock
     schemas: barstock
+    # Los datos de demostración son una migración repetible opcional (perfil demo).
+    ignore-migration-patterns: "*:future,repeatable:missing"
+  jackson:
+    time-zone: America/Argentina/Buenos_Aires
+
+barstock:
+  zona-horaria: America/Argentina/Buenos_Aires
 
 management:
   endpoints:

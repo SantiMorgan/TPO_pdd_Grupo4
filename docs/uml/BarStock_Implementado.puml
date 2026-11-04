@@ -1,0 +1,270 @@
+@startuml ArquitecturaImplementada
+title Arquitectura implementada - MVC + Facade
+
+package "Vista (React)" {
+  class VistaPorRol <<guarda por rol>>
+  class ClienteViews
+  class BartenderViews
+  class EncargadoViews
+  class DuenoViews
+  class "api/client.js" as Cliente
+}
+
+package "Controlador (REST)" {
+  class ComandaController
+  class InventarioController
+  class CompraController
+  class RecetaController
+  class CartaController
+  class AuditoriaController
+  class ReporteController
+  class EstablecimientoController
+  class ApiExceptionHandler
+}
+
+package "Facade" {
+  class BarStockFacade {
+    +registrarComanda()
+    +prepararComanda()
+    +despacharComanda()
+    +anularComanda()
+    +devolverTrago()
+    +registrarCompra()
+    +auditarInventario()
+    +consultarCarta()
+    +generarReporte()
+    +generarReporteDiario()
+  }
+}
+
+package "Modelo" {
+  class EstablecimientoService
+  class ComandaService
+  class RecetaService
+  class Inventario
+  class InventarioService
+  class SelectorEstrategiaPrecio
+  class AuditoriaService
+  class GeneradorReportes
+  class TrazaPatrones <<Fabricación pura>>
+}
+
+VistaPorRol --> ClienteViews
+VistaPorRol --> BartenderViews
+VistaPorRol --> EncargadoViews
+VistaPorRol --> DuenoViews
+ClienteViews ..> Cliente
+BartenderViews ..> Cliente
+EncargadoViews ..> Cliente
+DuenoViews ..> Cliente
+Cliente ..> ComandaController : HTTP/JSON
+ComandaController --> BarStockFacade
+InventarioController --> BarStockFacade
+CompraController --> BarStockFacade
+RecetaController --> BarStockFacade
+CartaController --> BarStockFacade
+AuditoriaController --> BarStockFacade
+ReporteController --> BarStockFacade
+EstablecimientoController --> BarStockFacade
+BarStockFacade --> EstablecimientoService
+BarStockFacade --> ComandaService
+BarStockFacade --> RecetaService
+BarStockFacade --> Inventario
+BarStockFacade --> InventarioService
+BarStockFacade --> SelectorEstrategiaPrecio
+BarStockFacade --> AuditoriaService
+BarStockFacade --> GeneradorReportes
+@enduml
+
+
+@startuml StateImplementado
+title State - Comanda (model/comanda/state)
+
+class Comanda {
+  -estado: EstadoComanda
+  +preparar(ahora)
+  +despachar(ahora)
+  +anular(motivo, ahora)
+  +devolver(itemId, cantidad, motivo, ahora)
+  +ventaNeta(): BigDecimal
+  +accionesPermitidas(): Set<AccionComanda>
+  +setEstado(EstadoComanda)
+}
+class DevolucionItem <<entidad>> {
+  -cantidad: int
+  -importe: BigDecimal
+  -motivo: String
+}
+interface EstadoComanda {
+  +codigo(): String
+  +accionesPermitidas(): Set<AccionComanda>
+  +preparar(Comanda, Instant)
+  +despachar(Comanda, Instant)
+  +anular(Comanda, String, Instant)
+  +devolver(Comanda, ItemComanda, int, String, Instant)
+}
+note right of EstadoComanda : Por defecto cada método lanza\nTransicionInvalidaException (409)
+class Registrada
+class EnPreparacion
+class Despachada
+class Anulada
+class EstadoComandaConverter <<JPA>>
+
+Comanda --> EstadoComanda
+Comanda *-- DevolucionItem
+EstadoComanda <|.. Registrada
+EstadoComanda <|.. EnPreparacion
+EstadoComanda <|.. Despachada
+EstadoComanda <|.. Anulada
+Registrada --> EnPreparacion : preparar()
+Registrada --> Anulada : anular()
+EnPreparacion --> Despachada : despachar()
+EnPreparacion --> Anulada : anular() [fallida]
+Despachada --> Despachada : devolver() [parcial, sin reponer stock]
+Despachada --> Anulada : devolver() [todas las unidades]
+EstadoComandaConverter ..> EstadoComanda
+@enduml
+
+
+@startuml StrategyImplementado
+title Strategy - Precios (model/precio)
+
+interface EstrategiaPrecio {
+  +codigo(): String
+  +nombre(): String
+  +calcularPrecio(Receta): BigDecimal
+}
+class PrecioNormal
+class PrecioHappyHour {
+  -descuento: BigDecimal
+  -margenMinimo: BigDecimal
+}
+class SelectorEstrategiaPrecio {
+  -reloj: Clock
+  +vigente(Establecimiento): EstrategiaVigente
+  +todas(Establecimiento): List<EstrategiaPrecio>
+}
+class PoliticaPrecio <<Embeddable>> {
+  -modo: ModoPrecio
+  -horaSimulada: LocalTime
+}
+class Comanda
+class Carta
+
+EstrategiaPrecio <|.. PrecioNormal
+EstrategiaPrecio <|.. PrecioHappyHour
+SelectorEstrategiaPrecio ..> PoliticaPrecio
+SelectorEstrategiaPrecio ..> EstrategiaPrecio : crea
+Comanda ..> EstrategiaPrecio : fija el precio al registrar
+Carta ..> EstrategiaPrecio
+@enduml
+
+
+@startuml ObserverFactoryImplementado
+title Observer + Simple Factory - Alertas de stock
+
+class Inventario {
+  -observadores: List<ObservadorStock>
+  +descontarTodo(List<Consumo>)
+  +registrarCompra()
+  +ajustarARecuento()
+  +agregarObservador()
+  +quitarObservador()
+  -notificar(eventos) <<after commit>>
+}
+interface ObservadorStock {
+  +actualizar(EventoStock)
+}
+class AlertaStock
+class BitacoraStock
+class EventoStock <<record>> {
+  +cruzoPuntoDeReposicion(): boolean
+}
+class NotificacionFactory {
+  +crear(TipoNotificacion): Notificacion
+}
+interface Notificacion {
+  +enviar(MensajeAlerta)
+}
+class NotificacionPanel
+class NotificacionEmail
+class NotificacionSms
+class NotificacionWhatsApp
+enum TipoNotificacion {
+  PANEL
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+Inventario --> ObservadorStock
+ObservadorStock <|.. AlertaStock
+ObservadorStock <|.. BitacoraStock
+Inventario ..> EventoStock
+AlertaStock --> NotificacionFactory
+NotificacionFactory ..> Notificacion : crea
+NotificacionFactory --> TipoNotificacion
+Notificacion <|.. NotificacionPanel
+Notificacion <|.. NotificacionEmail
+Notificacion <|.. NotificacionSms
+Notificacion <|.. NotificacionWhatsApp
+@enduml
+
+
+@startuml DecoratorImplementado
+title Decorator - Reportes (model/reporte)
+
+interface Reporte {
+  +generar(): ContenidoReporte
+}
+class ReporteBase
+abstract class ReporteDecorator {
+  #reporte: Reporte
+  +generar(): ContenidoReporte
+  #seccion(): SeccionReporte
+}
+class ReporteConGrafico
+class ReporteConTendencias
+class ReporteConMermas
+class ReporteConMargen
+enum TipoSeccion {
+  GRAFICO
+  TENDENCIAS
+  MERMAS
+  MARGEN
+  +decorar(Reporte, DatosReporte): Reporte
+}
+interface FuenteDatosReporte
+class FuenteDatosReporteJpa
+class GeneradorReportes {
+  +generar(establecimientos, Periodo, Turno, secciones)
+  +generarDiario(establecimientos, jornada): ReporteDiario
+}
+class DatosReporte <<record>>
+class Periodo <<record>> {
+  +anterior(): Periodo
+}
+class CalendarioJornadas {
+  +jornadaDe(Instant): LocalDate
+  +turnoDe(establecimiento, Instant): Turno
+}
+class HorarioAtencion <<Embeddable>> {
+  +INICIO_JORNADA = 6:00
+  +turnoDe(LocalTime): Turno
+}
+
+Reporte <|.. ReporteBase
+Reporte <|.. ReporteDecorator
+ReporteDecorator o-- Reporte
+ReporteDecorator <|-- ReporteConGrafico
+ReporteDecorator <|-- ReporteConTendencias
+ReporteDecorator <|-- ReporteConMermas
+ReporteDecorator <|-- ReporteConMargen
+GeneradorReportes ..> TipoSeccion
+GeneradorReportes --> FuenteDatosReporte
+GeneradorReportes ..> DatosReporte : filtra por bar, período y turno
+DatosReporte --> Periodo
+DatosReporte --> CalendarioJornadas
+CalendarioJornadas ..> HorarioAtencion
+FuenteDatosReporte <|.. FuenteDatosReporteJpa
+@enduml

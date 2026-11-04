@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/** Alta, consulta, edición y baja lógica de insumos. Los cambios de stock pasan por Inventario. */
 @Service
 @Transactional(readOnly = true)
 public class InventarioService {
@@ -17,44 +18,52 @@ public class InventarioService {
     }
 
     @Transactional
-    public Insumo crear(String codigo, String nombre, UnidadMedida unidadMedida,
-                        BigDecimal stockInicial, BigDecimal costoUnitario, BigDecimal puntoReorden) {
-        Insumo insumo = new Insumo(codigo, nombre, unidadMedida, stockInicial, costoUnitario, puntoReorden);
-        if (repositorio.existsByCodigo(insumo.getCodigo())) {
+    public Insumo crear(UUID establecimientoId, String codigo, String nombre, UnidadMedida unidadMedida,
+                        BigDecimal stockInicial, BigDecimal costoUnitario, BigDecimal puntoReorden,
+                        int contenidoEnvase) {
+        Insumo insumo = new Insumo(establecimientoId, codigo, nombre, unidadMedida, stockInicial,
+                costoUnitario, puntoReorden, contenidoEnvase);
+        if (repositorio.existsByEstablecimientoIdAndCodigo(establecimientoId, insumo.getCodigo())) {
             throw new CodigoInsumoDuplicadoException();
         }
-        // La restricción UNIQUE también protege las creaciones concurrentes.
+        // La restricción UNIQUE (establecimiento, código) también protege las creaciones concurrentes.
         return repositorio.saveAndFlush(insumo);
     }
 
-    public List<Insumo> listar(boolean activo) {
-        return repositorio.findByActivoOrderByNombreAscIdAsc(activo);
+    public List<Insumo> listar(UUID establecimientoId, boolean activo) {
+        return repositorio.findByEstablecimientoIdAndActivoOrderByNombreAscIdAsc(establecimientoId, activo);
     }
 
-    public Insumo consultar(UUID id) {
-        return repositorio.findById(id).orElseThrow(() -> new InsumoNoEncontradoException(id));
+    public Insumo consultar(UUID establecimientoId, UUID id) {
+        return repositorio.findById(id)
+                .filter(insumo -> insumo.perteneceA(establecimientoId))
+                .orElseThrow(() -> new InsumoNoEncontradoException(id));
     }
 
     @Transactional
-    public Insumo editar(UUID id, String nombre, BigDecimal costoUnitario, BigDecimal puntoReorden) {
-        Insumo insumo = buscarParaActualizar(id);
-        insumo.editar(nombre, costoUnitario, puntoReorden);
+    public Insumo editar(UUID establecimientoId, UUID id, String nombre, BigDecimal costoUnitario,
+                         BigDecimal puntoReorden, Integer contenidoEnvase) {
+        Insumo insumo = buscarParaActualizar(establecimientoId, id);
+        insumo.editar(nombre, costoUnitario, puntoReorden,
+                contenidoEnvase == null ? insumo.getContenidoEnvase() : contenidoEnvase);
         return insumo;
     }
 
     @Transactional
-    public void darDeBaja(UUID id) {
-        buscarParaActualizar(id).darDeBaja();
+    public void darDeBaja(UUID establecimientoId, UUID id) {
+        buscarParaActualizar(establecimientoId, id).darDeBaja();
     }
 
     @Transactional
-    public Insumo darDeAlta(UUID id) {
-        Insumo insumo = buscarParaActualizar(id);
+    public Insumo darDeAlta(UUID establecimientoId, UUID id) {
+        Insumo insumo = buscarParaActualizar(establecimientoId, id);
         insumo.darDeAlta();
         return insumo;
     }
 
-    private Insumo buscarParaActualizar(UUID id) {
-        return repositorio.buscarParaActualizar(id).orElseThrow(() -> new InsumoNoEncontradoException(id));
+    private Insumo buscarParaActualizar(UUID establecimientoId, UUID id) {
+        return repositorio.buscarParaActualizar(id)
+                .filter(insumo -> insumo.perteneceA(establecimientoId))
+                .orElseThrow(() -> new InsumoNoEncontradoException(id));
     }
 }
