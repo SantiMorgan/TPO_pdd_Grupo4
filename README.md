@@ -10,11 +10,10 @@ Trabajo Práctico — *Proceso de Desarrollo de Software*, UADE (Grupo 4).
 | Morganti, Santiago | [@usuario](https://github.com/USUARIO) | [Perfil](https://www.linkedin.com/in/USUARIO) |
 | Araujo, Nicolás Ezequiel | [@usuario](https://github.com/USUARIO) | [Perfil](https://www.linkedin.com/in/USUARIO) |
 | Alonso, María Eugenia | [@usuario](https://github.com/USUARIO) | [Perfil](https://www.linkedin.com/in/USUARIO) |
-| Welz, Mathias Gustavo | [@usuario](https://github.com/USUARIO) | [Perfil](https://www.linkedin.com/in/USUARIO) |
+| Welz, Mathias Gustavo | [@MathiWelz](https://github.com/MathiWelz) | [Mathias Welz](https://www.linkedin.com/in/mathias-welz/) |
 | Vazquez, Lucas Valentin | [@usuario](https://github.com/USUARIO) | [Perfil](https://www.linkedin.com/in/USUARIO) |
 
 **Repositorio:** <https://github.com/SantiMorgan/TPO_pdd_Grupo4>
-<!-- Completar los perfiles de los integrantes. -->
 
 
 **Docente:** Bueno, Moisés Evaristo · **Materia:** Proceso de Desarrollo de Software · **Universidad:** Universidad Argentina de la Empresa (UADE)
